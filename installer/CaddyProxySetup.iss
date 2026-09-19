@@ -144,14 +144,12 @@ begin
   DefManualIp := '';
   DefDisableLog := True;
 
-  // Baca setup_config.json dari folder installer (atau config terpasang jika reinstall)
+  // Hanya baca file setting jika ada di folder installer ({src})
   ConfigSrcFile := ExpandConstant('{src}\setup_config.json');
   if not FileExists(ConfigSrcFile) then
     ConfigSrcFile := ExpandConstant('{src}\caddy_setup_config.json');
   if not FileExists(ConfigSrcFile) then
     ConfigSrcFile := ExpandConstant('{src}\caddy_proxy_config.json');
-  if not FileExists(ConfigSrcFile) then
-    ConfigSrcFile := ExpandConstant('{autopf}\CaddyProxy\caddy_proxy_config.json');
 
   if FileExists(ConfigSrcFile) then
   begin
@@ -177,6 +175,7 @@ begin
   // Domain DuckDNS
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
+  lbl.ShowAccelChar := False;
   lbl.Caption := 'DuckDNS Domain (contoh: yourname.duckdns.org):';
   lbl.Left := 0;
   lbl.Top := y;
@@ -191,6 +190,7 @@ begin
   // Token DuckDNS
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
+  lbl.ShowAccelChar := False;
   lbl.Caption := 'DuckDNS Token:';
   lbl.Left := 0;
   lbl.Top := y;
@@ -206,7 +206,8 @@ begin
   // Host & Port Backend
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
-  lbl.Caption := 'Backend Target Host & Backend Target Port:';
+  lbl.ShowAccelChar := False;
+  lbl.Caption := 'Backend Target Host && Backend Target Port:';
   lbl.Left := 0;
   lbl.Top := y;
   edHost := TNewEdit.Create(ConfigPage);
@@ -227,7 +228,8 @@ begin
   // HTTPS Listen Port & Hotspot IP Override
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
-  lbl.Caption := 'HTTPS Listen Port & Hotspot IP Override (Opsional):';
+  lbl.ShowAccelChar := False;
+  lbl.Caption := 'HTTPS Listen Port && Hotspot IP Override (Opsional):';
   lbl.Left := 0;
   lbl.Top := y;
   edListenPort := TNewEdit.Create(ConfigPage);
