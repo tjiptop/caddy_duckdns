@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,3 +38,13 @@ jobs:
           name: CaddyProxy-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: latest
+          name: "Caddy Proxy APK Latest Release"
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
