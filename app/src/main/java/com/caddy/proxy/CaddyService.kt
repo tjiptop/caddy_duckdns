@@ -43,10 +43,31 @@ class CaddyService : Service() {
         var isRunning = false
             private set
 
+        val fullLogBuffer = StringBuilder()
+
+        fun getLogs(): String = synchronized(fullLogBuffer) {
+            fullLogBuffer.toString()
+        }
+
+        fun clearLogs() = synchronized(fullLogBuffer) {
+            fullLogBuffer.setLength(0)
+        }
+
+        fun appendLog(msg: String) = synchronized(fullLogBuffer) {
+            fullLogBuffer.append(msg).append("\n")
+            val lines = fullLogBuffer.lines()
+            if (lines.size > 600) {
+                val trimmed = lines.takeLast(500).joinToString("\n")
+                fullLogBuffer.setLength(0)
+                fullLogBuffer.append(trimmed).append("\n")
+            }
+        }
+
         var logListener: ((String) -> Unit)? = null
         var statusListener: ((Boolean, String) -> Unit)? = null
 
-        private fun emitLog(msg: String) {
+        fun emitLog(msg: String) {
+            appendLog(msg)
             logListener?.invoke(msg)
         }
 
@@ -61,6 +82,7 @@ class CaddyService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        LogServer.start { getLogs() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -198,6 +220,7 @@ $cleanDomain:$cleanListenPort {
                 env["HOME"] = filesDir.absolutePath
                 env["XDG_DATA_HOME"] = caddyDataDir.absolutePath
                 env["XDG_CONFIG_HOME"] = caddyConfigDir.absolutePath
+                env["GODEBUG"] = "netdns=cgo+2"
                 if (caCertFile.exists() && caCertFile.length() > 0) {
                     env["SSL_CERT_FILE"] = caCertFile.absolutePath
                     env["SSL_CERT_DIR"] = "/system/etc/security/cacerts"

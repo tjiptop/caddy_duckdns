@@ -21,4 +21,6 @@
     <string name="status_starting">Status: Starting Caddy...</string>
     <string name="hotspot_ip_label">Detected Hotspot/WLAN IP:</string>
     <string name="saved_toast">Pengaturan berhasil disimpan!</string>
+    <string name="btn_copy_log">📋 Salin Log</string>
+    <string name="btn_clear_log">🗑️ Bersihkan</string>
 </resources>

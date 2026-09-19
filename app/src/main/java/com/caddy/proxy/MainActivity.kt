@@ -37,9 +37,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etManualIp: AutoCompleteTextView
     private lateinit var btnSave: Button
     private lateinit var btnToggle: Button
+    private lateinit var tvStatus: TextView
+    private lateinit var tvLogServerLink: TextView
     private lateinit var btnCopyLog: Button
     private lateinit var btnClearLog: Button
-    private lateinit var tvStatus: TextView
     private lateinit var tvLogs: TextView
 
     private val logBuffer = StringBuilder()
@@ -56,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsIfNeeded()
         detectLocalIp()
         setupListeners()
+        LogServer.start { CaddyService.getLogs() }
     }
 
     private fun initViews() {
@@ -68,9 +70,10 @@ class MainActivity : AppCompatActivity() {
         etManualIp = findViewById(R.id.etManualIp)
         btnSave = findViewById(R.id.btnSave)
         btnToggle = findViewById(R.id.btnToggle)
+        tvStatus = findViewById(R.id.tvStatus)
+        tvLogServerLink = findViewById(R.id.tvLogServerLink)
         btnCopyLog = findViewById(R.id.btnCopyLog)
         btnClearLog = findViewById(R.id.btnClearLog)
-        tvStatus = findViewById(R.id.tvStatus)
         tvLogs = findViewById(R.id.tvLogs)
     }
 
@@ -82,6 +85,13 @@ class MainActivity : AppCompatActivity() {
         etListenPort.setText(prefs.getString("listen_port", "8443"))
         etManualIp.setText(prefs.getString("manual_ip", ""))
         updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Running" else "Stopped")
+
+        val existingLogs = CaddyService.getLogs()
+        if (existingLogs.isNotBlank()) {
+            logBuffer.setLength(0)
+            logBuffer.append(existingLogs)
+            tvLogs.text = existingLogs
+        }
     }
 
     private fun saveConfig() {
@@ -102,6 +112,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 detectedIps = allIps
                 tvDetectedIp.text = "IP Hotspot/WLAN: $ip (Tap untuk refresh)"
+                tvLogServerLink.text = "HTTP Log URL: http://$ip:8088/logs"
 
                 val dropdownItems = mutableListOf<String>()
                 dropdownItems.add("(Auto-detect IP)")
@@ -136,6 +147,33 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Memindai ulang IP adapter jaringan...", Toast.LENGTH_SHORT).show()
         }
 
+        tvLogServerLink.setOnClickListener {
+            val linkText = tvLogServerLink.text.toString().removePrefix("HTTP Log URL: ").trim()
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Log URL", linkText)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "URL Log disalin: $linkText", Toast.LENGTH_SHORT).show()
+        }
+
+        btnCopyLog.setOnClickListener {
+            val logs = CaddyService.getLogs().ifBlank { logBuffer.toString() }
+            if (logs.isBlank()) {
+                Toast.makeText(this, "Log masih kosong", Toast.LENGTH_SHORT).show()
+            } else {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Caddy Logs", logs)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Log disalin ke clipboard! Siap di-paste", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        btnClearLog.setOnClickListener {
+            logBuffer.setLength(0)
+            CaddyService.clearLogs()
+            tvLogs.text = ""
+            Toast.makeText(this, "Log dibersihkan", Toast.LENGTH_SHORT).show()
+        }
+
         btnSave.setOnClickListener {
             saveConfig()
             Toast.makeText(this, getString(R.string.saved_toast), Toast.LENGTH_SHORT).show()
@@ -149,31 +187,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnCopyLog.setOnClickListener {
-            val contentToCopy = if (logBuffer.isNotEmpty()) {
-                logBuffer.toString()
-            } else {
-                tvLogs.text.toString()
-            }
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Caddy Logs", contentToCopy)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "Log berhasil disalin ke clipboard! Silakan paste.", Toast.LENGTH_LONG).show()
-        }
-
-        btnClearLog.setOnClickListener {
-            logBuffer.setLength(0)
-            tvLogs.text = "(Log telah dibersihkan)\n"
-            Toast.makeText(this, "Log dibersihkan", Toast.LENGTH_SHORT).show()
-        }
-
         CaddyService.logListener = { message ->
             runOnUiThread {
                 logBuffer.append(message).append("\n")
-                // Keep max 300 lines
+                // Keep max 100 lines
                 val lines = logBuffer.lines()
-                if (lines.size > 350) {
-                    val trimmed = lines.takeLast(300).joinToString("\n")
+                if (lines.size > 120) {
+                    val trimmed = lines.takeLast(100).joinToString("\n")
                     logBuffer.setLength(0)
                     logBuffer.append(trimmed).append("\n")
                 }
