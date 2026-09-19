@@ -163,6 +163,18 @@ class CaddyService : Service() {
                 val certFile = File(certsDir, "$cleanDomain.crt")
                 val keyFile = File(certsDir, "$cleanDomain.key")
 
+                // Auto-restore SSL certificates from SharedPreferences if missing
+                val prefs = getSharedPreferences("caddy_proxy_prefs", Context.MODE_PRIVATE)
+                if (!certFile.exists() || certFile.length() == 0L || !keyFile.exists() || keyFile.length() == 0L) {
+                    val savedCrt = prefs.getString("saved_cert_$cleanDomain", null)
+                    val savedKey = prefs.getString("saved_key_$cleanDomain", null)
+                    if (!savedCrt.isNullOrBlank() && !savedKey.isNullOrBlank()) {
+                        certFile.writeText(savedCrt)
+                        keyFile.writeText(savedKey)
+                        emitLog("Memulihkan sertifikat SSL dari penyimpanan permanen untuk $cleanDomain")
+                    }
+                }
+
                 // Extract bundled certificates from APK assets if available
                 try {
                     val assetList = assets.list("certs") ?: emptyArray()
@@ -173,10 +185,15 @@ class CaddyService : Service() {
                         assets.open("certs/$cleanDomain.key").use { input ->
                             keyFile.outputStream().use { output -> input.copyTo(output) }
                         }
-                        emitLog("Installed pre-issued SSL certificate for $cleanDomain")
+                        emitLog("Installed pre-issued SSL certificate for $cleanDomain from assets")
                     }
                 } catch (e: Exception) {
                     emitLog("Note on assets: ${e.message}")
+                }
+
+                // Start Client Certificate Download Portal if enabled
+                if (prefs.getBoolean("enable_portal", true)) {
+                    CertServerManager.start(this@CaddyService, onLog = { emitLog(it) })
                 }
 
                 val hasCustomCert = certFile.exists() && certFile.length() > 0L && keyFile.exists() && keyFile.length() > 0L
@@ -211,7 +228,7 @@ class CaddyService : Service() {
     auto_https disable_redirects
 }
 
-$cleanDomain:$cleanListenPort {
+$cleanDomain:$cleanListenPort, :$cleanListenPort {
     $tlsBlock$logBlock
     reverse_proxy $cleanBackendHost:$cleanBackendPort {
         header_up Host {host}

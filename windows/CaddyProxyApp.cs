@@ -89,6 +89,36 @@ namespace CaddyProxyWindows
             return false;
         }
 
+        private static string SetupPortalAndGetCaddyBlock(string baseDir, string domain)
+        {
+            try
+            {
+                string portalDir = Path.Combine(baseDir, "portal");
+                if (!Directory.Exists(portalDir)) Directory.CreateDirectory(portalDir);
+
+                string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string certSearch = Path.Combine(appData, "Caddy", "certificates");
+                if (Directory.Exists(certSearch))
+                {
+                    string clean = (domain ?? "").Trim();
+                    string[] found = Directory.GetFiles(certSearch, clean + ".crt", SearchOption.AllDirectories);
+                    if (found.Length > 0)
+                    {
+                        File.Copy(found[0], Path.Combine(portalDir, "cert.crt"), true);
+                    }
+                }
+
+                return "\n:8080 {\n" +
+                       "    root * \"" + portalDir.Replace("\\", "/") + "\"\n" +
+                       "    file_server\n" +
+                       "}\n";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         private static void RunServiceMode(string[] args)
         {
             try
@@ -232,6 +262,8 @@ namespace CaddyProxyWindows
                                  "    }\n" +
                                  "}\n";
 
+            caddyConfig += SetupPortalAndGetCaddyBlock(baseDir, domain);
+
             File.WriteAllText(caddyfilePath, caddyConfig);
             serviceLog("Caddyfile berhasil dibuat di: " + caddyfilePath);
 
@@ -332,8 +364,8 @@ namespace CaddyProxyWindows
         private void InitializeComponent()
         {
             this.Text = "Caddy HTTPS Reverse Proxy (Windows)";
-            this.Size = new Size(680, 720);
-            this.MinimumSize = new Size(600, 650);
+            this.Size = new Size(680, 760);
+            this.MinimumSize = new Size(600, 680);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Color.FromArgb(18, 18, 18);
             this.ForeColor = Color.White;
@@ -358,7 +390,7 @@ namespace CaddyProxyWindows
             mainLayout.RowCount = 5;
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Title
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // IP Label
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 345)); // Config Box
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 385)); // Config Box
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // Log Header
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Logs
             this.Controls.Add(mainLayout);
@@ -538,6 +570,48 @@ namespace CaddyProxyWindows
                 }
             };
             card.Controls.Add(btnService);
+            y += 36;
+
+            Button btnOpenPortal = new Button {
+                Text = "🌐 Buka Portal Unduh Klien",
+                Location = new Point(180, y),
+                Size = new Size(205, 30),
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.FromArgb(56, 189, 248),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.2F)
+            };
+            btnOpenPortal.FlatAppearance.BorderSize = 0;
+            btnOpenPortal.Click += (s, e) => {
+                string ip = GetSelectedIp();
+                if (string.IsNullOrEmpty(ip)) ip = "127.0.0.1";
+                Process.Start("http://" + ip + ":8080/");
+            };
+            card.Controls.Add(btnOpenPortal);
+
+            Button btnSyncAndroid = new Button {
+                Text = "📲 Kirim Sertifikat ke HP",
+                Location = new Point(395, y),
+                Size = new Size(205, 30),
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.FromArgb(255, 179, 0),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.2F)
+            };
+            btnSyncAndroid.FlatAppearance.BorderSize = 0;
+            btnSyncAndroid.Click += (s, e) => {
+                string bat = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "Kirim-Sertifikat-ke-Android.bat");
+                if (!File.Exists(bat)) bat = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Kirim-Sertifikat-ke-Android.bat");
+                if (File.Exists(bat)) {
+                    Process.Start(new ProcessStartInfo {
+                        FileName = bat,
+                        UseShellExecute = true
+                    });
+                } else {
+                    MessageBox.Show("File Kirim-Sertifikat-ke-Android.bat tidak ditemukan!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            card.Controls.Add(btnSyncAndroid);
             y += 36;
 
             lblStatus = new Label {
@@ -740,6 +814,9 @@ namespace CaddyProxyWindows
                                  "        header_up X-Real-IP {remote_host}\n" +
                                  "    }\n" +
                                  "}\n";
+
+            caddyConfig += SetupPortalAndGetCaddyBlock(AppDomain.CurrentDomain.BaseDirectory, domain);
+
             File.WriteAllText(caddyfilePath, caddyConfig);
             AppendLog("Caddyfile dibuat di: " + caddyfilePath);
 

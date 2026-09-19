@@ -13,3 +13,6 @@ windows/caddy_proxy_config.json
 windows/Caddyfile
 windows/*.log
 *setup_config.json
+*.crt
+*.key
+windows/portal/cert.crt

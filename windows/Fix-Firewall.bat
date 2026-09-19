@@ -26,6 +26,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "New-NetFirewallRule -Dis
 powershell -NoProfile -ExecutionPolicy Bypass -Command "New-NetFirewallRule -DisplayName 'Caddy Server Port 80' -Direction Inbound -LocalPort 80 -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "New-NetFirewallRule -DisplayName 'Caddy Server Port 8443' -Direction Inbound -LocalPort 8443 -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null"
 powershell -NoProfile -ExecutionPolicy Bypass -Command "New-NetFirewallRule -DisplayName 'Caddy Server Port 8090' -Direction Inbound -LocalPort 8090 -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "New-NetFirewallRule -DisplayName 'Caddy Server Port 8080' -Direction Inbound -LocalPort 8080 -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null"
 
 echo [3/3] Menambahkan pengecualian Windows Defender...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-MpPreference -ExclusionPath '%~dp0' -ErrorAction SilentlyContinue"

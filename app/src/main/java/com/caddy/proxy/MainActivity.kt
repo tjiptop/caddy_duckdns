@@ -1,6 +1,7 @@
 package com.caddy.proxy
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -8,13 +9,17 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.widget.AutoCompleteTextView
+import android.text.Editable
+import android.text.TextWatcher
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -24,6 +29,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,8 +50,23 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnClearLog: Button
     private lateinit var tvLogs: TextView
 
+    // SSL Certificate Management Views
+    private lateinit var tvCertStatus: TextView
+    private lateinit var btnPasteCert: Button
+    private lateinit var btnImportCert: Button
+
+    // Client Download Portal Views
+    private lateinit var tvPortalUrl: TextView
+    private lateinit var btnCopyPortalLink: Button
+    private lateinit var btnSharePortalLink: Button
+    private lateinit var cbEnablePortal: MaterialCheckBox
+
     private val logBuffer = StringBuilder()
     private var detectedIps: List<IpInfo> = emptyList()
+
+    private val certFileLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { handleCertFilePicked(it) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +79,12 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsIfNeeded()
         detectLocalIp()
         setupListeners()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateCertStatus()
+        manageCertServer()
     }
 
     private fun initViews() {
@@ -75,6 +102,17 @@ class MainActivity : AppCompatActivity() {
         btnCopyLog = findViewById(R.id.btnCopyLog)
         btnClearLog = findViewById(R.id.btnClearLog)
         tvLogs = findViewById(R.id.tvLogs)
+
+        // SSL views
+        tvCertStatus = findViewById(R.id.tvCertStatus)
+        btnPasteCert = findViewById(R.id.btnPasteCert)
+        btnImportCert = findViewById(R.id.btnImportCert)
+
+        // Portal views
+        tvPortalUrl = findViewById(R.id.tvPortalUrl)
+        btnCopyPortalLink = findViewById(R.id.btnCopyPortalLink)
+        btnSharePortalLink = findViewById(R.id.btnSharePortalLink)
+        cbEnablePortal = findViewById(R.id.cbEnablePortal)
     }
 
     private fun loadSavedConfig() {
@@ -85,7 +123,12 @@ class MainActivity : AppCompatActivity() {
         etListenPort.setText(prefs.getString("listen_port", "8443"))
         etManualIp.setText(prefs.getString("manual_ip", ""))
         cbDisableLog.isChecked = prefs.getBoolean("disable_log", true)
+        cbEnablePortal.isChecked = prefs.getBoolean("enable_portal", true)
+
         updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Running" else "Stopped")
+        updateCertStatus()
+        updatePortalUrl()
+        manageCertServer()
 
         val existingLogs = CaddyService.getLogs()
         if (existingLogs.isNotBlank()) {
@@ -104,6 +147,7 @@ class MainActivity : AppCompatActivity() {
             .putString("listen_port", etListenPort.text?.toString()?.trim())
             .putString("manual_ip", etManualIp.text?.toString()?.trim())
             .putBoolean("disable_log", cbDisableLog.isChecked)
+            .putBoolean("enable_portal", cbEnablePortal.isChecked)
             .apply()
     }
 
@@ -114,6 +158,7 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 detectedIps = allIps
                 tvDetectedIp.text = "IP Hotspot/WLAN: $ip (Tap untuk refresh)"
+                updatePortalUrl(ip)
 
                 val dropdownItems = mutableListOf<String>()
                 dropdownItems.add("(Auto-detect IP)")
@@ -133,6 +178,7 @@ class MainActivity : AppCompatActivity() {
                             etManualIp.setText(chosen.ip, false)
                         }
                     }
+                    updatePortalUrl()
                 }
 
                 etManualIp.setOnClickListener {
@@ -169,6 +215,7 @@ class MainActivity : AppCompatActivity() {
 
         btnSave.setOnClickListener {
             saveConfig()
+            updateCertStatus()
             Toast.makeText(this, getString(R.string.saved_toast), Toast.LENGTH_SHORT).show()
         }
 
@@ -180,10 +227,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // SSL listeners
+        btnPasteCert.setOnClickListener {
+            showPasteCertDialog()
+        }
+
+        btnImportCert.setOnClickListener {
+            certFileLauncher.launch(arrayOf("*/*"))
+        }
+
+        // Portal listeners
+        btnCopyPortalLink.setOnClickListener {
+            copyPortalLink()
+        }
+
+        btnSharePortalLink.setOnClickListener {
+            sharePortalLink()
+        }
+
+        cbEnablePortal.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("enable_portal", isChecked).apply()
+            manageCertServer()
+        }
+
+        etDomain.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                updateCertStatus()
+            }
+        })
+
         CaddyService.logListener = { message ->
             runOnUiThread {
                 logBuffer.append(message).append("\n")
-                // Keep max 100 lines
                 val lines = logBuffer.lines()
                 if (lines.size > 120) {
                     val trimmed = lines.takeLast(100).joinToString("\n")
@@ -198,6 +275,153 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 updateUiState(running, text)
             }
+        }
+    }
+
+    private fun getCleanDomain(): String {
+        val d = etDomain.text?.toString()?.trim()?.replace("dnsduck.org", "duckdns.org") ?: ""
+        return if (d.isNotBlank() && !d.contains(".")) "$d.duckdns.org" else d
+    }
+
+    private fun updateCertStatus() {
+        val domain = getCleanDomain()
+        if (domain.isBlank()) {
+            tvCertStatus.text = "Masukkan domain DuckDNS terlebih dahulu"
+            tvCertStatus.setTextColor(Color.parseColor("#9E9E9E"))
+            return
+        }
+
+        val savedCrt = prefs.getString("saved_cert_$domain", null)
+        val certFile = File(File(filesDir, "certs"), "$domain.crt")
+        val keyFile = File(File(filesDir, "certs"), "$domain.key")
+
+        val hasCert = (!savedCrt.isNullOrBlank()) ||
+                (certFile.exists() && certFile.length() > 0L && keyFile.exists() && keyFile.length() > 0L)
+
+        if (hasCert) {
+            val size = if (certFile.exists()) certFile.length() else savedCrt?.length?.toLong() ?: 0L
+            tvCertStatus.text = "✅ Sertifikat Terpasang: $domain ($size bytes)"
+            tvCertStatus.setTextColor(Color.parseColor("#4CAF50"))
+        } else {
+            tvCertStatus.text = "⚠️ Belum ada sertifikat lokal untuk $domain"
+            tvCertStatus.setTextColor(Color.parseColor("#FF9800"))
+        }
+    }
+
+    private fun updatePortalUrl(ip: String? = null) {
+        val manual = etManualIp.text?.toString()?.trim() ?: ""
+        val targetIp = if (manual.isNotBlank()) {
+            manual
+        } else if (!ip.isNullOrBlank() && ip != "127.0.0.1") {
+            ip
+        } else {
+            NetworkHelper.getLocalIpAddress().ifBlank { "127.0.0.1" }
+        }
+        tvPortalUrl.text = "http://$targetIp:8080/"
+    }
+
+    private fun copyPortalLink() {
+        val url = tvPortalUrl.text.toString()
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Portal Sertifikat", url)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, "Link portal disalin: $url", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun sharePortalLink() {
+        val url = tvPortalUrl.text.toString()
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Download Sertifikat SSL")
+            putExtra(Intent.EXTRA_TEXT, "Buka link ini di browser Anda untuk mengunduh sertifikat SSL: $url")
+        }
+        startActivity(Intent.createChooser(intent, "Bagikan Link Portal Sertifikat"))
+    }
+
+    private fun manageCertServer() {
+        val enable = prefs.getBoolean("enable_portal", true)
+        if (enable) {
+            CertServerManager.start(this, onLog = { msg ->
+                CaddyService.logListener?.invoke(msg)
+            }, onCertReceived = { domain, _, _ ->
+                runOnUiThread {
+                    if (etDomain.text.isNullOrBlank()) {
+                        etDomain.setText(domain)
+                    }
+                    updateCertStatus()
+                    Toast.makeText(this, "Sertifikat untuk $domain berhasil diterima dan aktif!", Toast.LENGTH_LONG).show()
+                }
+            })
+        } else {
+            CertServerManager.stop()
+        }
+    }
+
+    private fun showPasteCertDialog() {
+        val domain = getCleanDomain()
+        val dialogView = layoutInflater.inflate(R.layout.dialog_paste_cert, null)
+        val dDomain = dialogView.findViewById<TextInputEditText>(R.id.dialogDomain)
+        val dCrt = dialogView.findViewById<TextInputEditText>(R.id.dialogCrt)
+        val dKey = dialogView.findViewById<TextInputEditText>(R.id.dialogKey)
+
+        dDomain.setText(domain)
+        dCrt.setText(prefs.getString("saved_cert_$domain", ""))
+        dKey.setText(prefs.getString("saved_key_$domain", ""))
+
+        AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("Simpan") { _, _ ->
+                val inputDomain = dDomain.text?.toString()?.trim()?.replace("dnsduck.org", "duckdns.org") ?: ""
+                val cleanDomain = if (inputDomain.isNotBlank() && !inputDomain.contains(".")) "$inputDomain.duckdns.org" else inputDomain
+                val crt = dCrt.text?.toString()?.trim() ?: ""
+                val key = dKey.text?.toString()?.trim() ?: ""
+
+                if (cleanDomain.isBlank() || crt.isBlank() || key.isBlank()) {
+                    Toast.makeText(this, "Domain, CRT, dan KEY tidak boleh kosong!", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+
+                prefs.edit()
+                    .putString("domain", cleanDomain)
+                    .putString("saved_cert_$cleanDomain", crt)
+                    .putString("saved_key_$cleanDomain", key)
+                    .apply()
+
+                val certsDir = File(filesDir, "certs").apply { mkdirs() }
+                File(certsDir, "$cleanDomain.crt").writeText(crt)
+                File(certsDir, "$cleanDomain.key").writeText(key)
+
+                etDomain.setText(cleanDomain)
+                updateCertStatus()
+                Toast.makeText(this, "Sertifikat SSL berhasil disimpan secara permanen!", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun handleCertFilePicked(uri: Uri) {
+        try {
+            contentResolver.openInputStream(uri)?.use { input ->
+                val text = input.bufferedReader().readText()
+                val domain = getCleanDomain().ifBlank { "absenku.duckdns.org" }
+                val certsDir = File(filesDir, "certs").apply { mkdirs() }
+
+                if (text.contains("BEGIN CERTIFICATE")) {
+                    prefs.edit().putString("saved_cert_$domain", text).apply()
+                    File(certsDir, "$domain.crt").writeText(text)
+                    updateCertStatus()
+                    Toast.makeText(this, "File sertifikat (.crt) berhasil diimpor untuk $domain!", Toast.LENGTH_LONG).show()
+                } else if (text.contains("BEGIN PRIVATE KEY") || text.contains("BEGIN RSA PRIVATE KEY") || text.contains("BEGIN EC PRIVATE KEY")) {
+                    prefs.edit().putString("saved_key_$domain", text).apply()
+                    File(certsDir, "$domain.key").writeText(text)
+                    updateCertStatus()
+                    Toast.makeText(this, "File private key (.key) berhasil diimpor untuk $domain!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this, "Format file tidak dikenali sebagai sertifikat (.crt) atau private key (.key)", Toast.LENGTH_LONG).show()
+                }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal membaca file: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 

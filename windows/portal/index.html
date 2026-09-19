@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Sertifikat SSL - Caddy Windows</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: #0f172a; color: #f8fafc; padding: 20px; line-height: 1.6; }
+        .container { max-width: 580px; margin: 0 auto; }
+        .card { background: #1e293b; border-radius: 14px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; margin-bottom: 20px; }
+        h1 { font-size: 22px; margin-bottom: 8px; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+        p.subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 18px; }
+        .badge { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 18px; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+        .btn { display: block; text-align: center; padding: 14px 20px; border-radius: 10px; font-size: 16px; font-weight: bold; text-decoration: none; transition: 0.2s; border: none; cursor: pointer; width: 100%; background: #0284c7; color: white; box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4); }
+        .btn:hover { background: #0369a1; }
+        .guide-section { margin-top: 24px; }
+        .guide-title { font-size: 16px; font-weight: bold; color: #e2e8f0; margin-bottom: 12px; }
+        .tab-box { background: #0f172a; border-radius: 8px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #38bdf8; }
+        .tab-box h3 { font-size: 14px; color: #38bdf8; margin-bottom: 8px; }
+        ol { padding-left: 20px; font-size: 13px; color: #cbd5e1; }
+        li { margin-bottom: 6px; }
+        .link-box { background: #0284c7; color: white; padding: 12px; border-radius: 8px; margin-top: 16px; text-align: center; }
+        .link-box a { color: #fef08a; font-weight: bold; text-decoration: underline; }
+        footer { text-align: center; font-size: 12px; color: #64748b; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>🔒 Portal Sertifikat SSL (Windows)</h1>
+        <p class="subtitle">Unduh dan pasang sertifikat keamanan untuk mengakses aplikasi web tanpa error SSL pada jaringan lokal / intranet.</p>
+        
+        <div class="badge">✅ Portal Sertifikat Aktif</div>
+        
+        <a href="/cert.crt" class="btn">⬇️ Download Sertifikat SSL (.crt)</a>
+        
+        <div class="link-box">
+            Setelah sertifikat terpasang, buka aplikasi di:<br>
+            <a href="https://absenku.duckdns.org">https://absenku.duckdns.org</a>
+        </div>
+    </div>
+
+    <div class="card guide-section">
+        <div class="guide-title">📖 Panduan Memasang Sertifikat (.crt):</div>
+        
+        <div class="tab-box">
+            <h3>📱 Android:</h3>
+            <ol>
+                <li>Ketuk tombol unduh di atas untuk mengunduh <b>cert.crt</b>.</li>
+                <li>Buka <b>Pengaturan HP</b> &rarr; cari <b>"Sertifikat"</b> atau <b>"Enkripsi & Kredensial"</b>.</li>
+                <li>Pilih <b>Pasang dari penyimpanan</b> &rarr; pilih <b>Sertifikat CA</b> (atau <b>Sertifikat Pengguna</b>).</li>
+                <li>Pilih file <code>cert.crt</code> yang baru saja diunduh & konfirmasi.</li>
+            </ol>
+        </div>
+
+        <div class="tab-box">
+            <h3>💻 Windows:</h3>
+            <ol>
+                <li>Buka file <code>cert.crt</code> yang telah diunduh.</li>
+                <li>Klik <b>Install Certificate...</b> &rarr; pilih <b>Current User</b>.</li>
+                <li>Pilih <b>Place all certificates in the following store</b> &rarr; klik <b>Browse</b> &rarr; pilih <b>Trusted Root Certification Authorities</b>.</li>
+                <li>Klik Next & Finish &rarr; konfirmasi Yes.</li>
+            </ol>
+        </div>
+
+        <div class="tab-box">
+            <h3>🍏 iPhone / iPad (iOS):</h3>
+            <ol>
+                <li>Buka halaman ini dan unduh file melalui browser <b>Safari</b>.</li>
+                <li>Buka <b>Settings</b> &rarr; ketuk <b>Profile Downloaded</b> &rarr; <b>Install</b>.</li>
+                <li>Buka <b>Settings &rarr; General &rarr; About &rarr; Certificate Trust Settings</b>.</li>
+                <li>Aktifkan sakelar hijau untuk sertifikat.</li>
+            </ol>
+        </div>
+    </div>
+    
+    <footer>Caddy HTTPS Reverse Proxy Windows &bull; Portal Sertifikat Offline</footer>
+</div>
+</body>
+</html>

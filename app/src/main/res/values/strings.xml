@@ -25,4 +25,11 @@
     <string name="btn_copy_log">📋 Salin Log</string>
     <string name="btn_clear_log">🗑️ Bersihkan</string>
     <string name="copied_toast">Log berhasil disalin ke clipboard!</string>
+    <string name="title_ssl_cert">Sertifikat SSL (HTTPS)</string>
+    <string name="btn_paste_cert">📋 Tempel CRT &amp; KEY</string>
+    <string name="btn_import_cert">📁 Impor File (.crt)</string>
+    <string name="title_portal">🌐 Portal Unduh Sertifikat Klien</string>
+    <string name="btn_copy_link">📋 Salin Link</string>
+    <string name="btn_share_link">↗️ Bagikan Link</string>
+    <string name="label_enable_portal">Aktifkan Server Portal Unduh (Port 8080)</string>
 </resources>
