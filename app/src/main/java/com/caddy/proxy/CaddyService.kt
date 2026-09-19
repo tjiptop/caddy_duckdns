@@ -36,6 +36,7 @@ class CaddyService : Service() {
         const val EXTRA_BACKEND_PORT = "EXTRA_BACKEND_PORT"
         const val EXTRA_LISTEN_PORT = "EXTRA_LISTEN_PORT"
         const val EXTRA_MANUAL_IP = "EXTRA_MANUAL_IP"
+        const val EXTRA_DISABLE_LOG = "EXTRA_DISABLE_LOG"
 
         const val CHANNEL_ID = "caddy_proxy_channel"
         const val NOTIFICATION_ID = 1001
@@ -82,7 +83,6 @@ class CaddyService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        LogServer.start({ File(filesDir, "certs").apply { mkdirs() } }) { getLogs() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -90,16 +90,17 @@ class CaddyService : Service() {
 
         when (action) {
             ACTION_START -> {
-                val domain = intent.getStringExtra(EXTRA_DOMAIN) ?: "tjipto.duckdns.org"
+                val domain = intent.getStringExtra(EXTRA_DOMAIN) ?: ""
                 val token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 val backendHost = intent.getStringExtra(EXTRA_BACKEND_HOST)?.ifBlank { "127.0.0.1" } ?: "127.0.0.1"
                 val backendPort = intent.getStringExtra(EXTRA_BACKEND_PORT) ?: "8090"
                 val listenPort = intent.getStringExtra(EXTRA_LISTEN_PORT) ?: "8443"
                 val manualIp = intent.getStringExtra(EXTRA_MANUAL_IP) ?: ""
+                val disableLog = intent.getBooleanExtra(EXTRA_DISABLE_LOG, true)
 
                 startForeground(NOTIFICATION_ID, buildNotification("Running HTTPS: $domain:$listenPort"))
                 emitStatus(true, "Starting Caddy...")
-                startCaddy(domain, token, backendHost, backendPort, listenPort, manualIp)
+                startCaddy(domain, token, backendHost, backendPort, listenPort, manualIp, disableLog)
             }
             ACTION_STOP -> {
                 stopCaddy()
@@ -122,13 +123,14 @@ class CaddyService : Service() {
         backendHost: String,
         backendPort: String,
         listenPort: String,
-        manualIp: String
+        manualIp: String,
+        disableLog: Boolean
     ) {
         serviceScope.launch {
             try {
                 // Sanitize domain (fix dnsduck typo and add .duckdns.org suffix if missing)
                 var cleanDomain = domain.trim().replace("dnsduck.org", "duckdns.org")
-                if (!cleanDomain.contains(".")) {
+                if (cleanDomain.isNotBlank() && !cleanDomain.contains(".")) {
                     cleanDomain = "$cleanDomain.duckdns.org"
                 }
 
@@ -148,10 +150,11 @@ class CaddyService : Service() {
                     NetworkHelper.getLocalIpAddress()
                 }
                 emitLog("Using Hotspot/Target IP: $localIp")
-                emitLog("Updating DuckDNS record for $cleanDomain...")
-
-                val (ok, updateMsg) = DuckDnsHelper.updateIp(cleanDomain, token, localIp)
-                emitLog(updateMsg)
+                if (cleanDomain.isNotBlank() && token.isNotBlank()) {
+                    emitLog("Updating DuckDNS record for $cleanDomain...")
+                    val (ok, updateMsg) = DuckDnsHelper.updateIp(cleanDomain, token, localIp)
+                    emitLog(updateMsg)
+                }
 
                 // 2. Prepare Caddy directories
                 val caddyDataDir = File(filesDir, "caddy_data").apply { mkdirs() }
@@ -191,6 +194,17 @@ class CaddyService : Service() {
     }"""
                 }
 
+                val logBlock = if (disableLog) {
+                    emitLog("HTTP access logging disabled for optimal performance.")
+                    ""
+                } else {
+                    """
+    log {
+        output stdout
+        format console
+    }"""
+                }
+
                 val configContent = """
 {
     admin off
@@ -198,11 +212,7 @@ class CaddyService : Service() {
 }
 
 $cleanDomain:$cleanListenPort {
-    $tlsBlock
-    log {
-        output stdout
-        format console
-    }
+    $tlsBlock$logBlock
     reverse_proxy $cleanBackendHost:$cleanBackendPort {
         header_up Host {host}
         header_up X-Real-IP {remote_host}

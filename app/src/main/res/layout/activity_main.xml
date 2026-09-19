@@ -55,7 +55,6 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:inputType="textUri"
-                        android:text="tjipto.duckdns.org"
                         android:textColor="@color/text_primary" />
                 </com.google.android.material.textfield.TextInputLayout>
 
@@ -157,6 +156,17 @@
                     </com.google.android.material.textfield.TextInputLayout>
                 </LinearLayout>
 
+                <!-- Disable Access Log Checkbox -->
+                <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/cbDisableLog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:checked="true"
+                    android:text="@string/label_disable_log"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp" />
+
                 <!-- Action Buttons: Save & Start/Stop -->
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -237,15 +247,6 @@
                 android:textColor="#F44336"
                 android:textSize="11sp" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvLogServerLink"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="Web Log URL: http://...:8088/logs"
-            android:textColor="#64B5F6"
-            android:textSize="11sp" />
 
         <HorizontalScrollView
             android:layout_width="match_parent"

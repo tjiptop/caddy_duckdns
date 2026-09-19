@@ -2,7 +2,7 @@
     <string name="app_name">Caddy Reverse Proxy</string>
     <string name="title_config">DuckDNS &amp; Proxy Configuration</string>
     <string name="label_domain">DuckDNS Domain</string>
-    <string name="hint_domain">e.g. tjipto.duckdns.org</string>
+    <string name="hint_domain">e.g. absenku.duckdns.org</string>
     <string name="label_token">DuckDNS Token</string>
     <string name="hint_token">Your DuckDNS API Token</string>
     <string name="label_backend_host">Backend Target Host</string>
@@ -13,6 +13,7 @@
     <string name="hint_listen_port">8443</string>
     <string name="label_manual_ip">Hotspot IP Override (Opsional)</string>
     <string name="hint_manual_ip">Kosongkan untuk auto-detect (192.168.43.1)</string>
+    <string name="label_disable_log">Matikan Log Akses (Direkomendasikan)</string>
     <string name="btn_save">Simpan Pengaturan</string>
     <string name="btn_start">Start Caddy Proxy</string>
     <string name="btn_stop">Stop Proxy</string>
@@ -23,4 +24,5 @@
     <string name="saved_toast">Pengaturan berhasil disimpan!</string>
     <string name="btn_copy_log">📋 Salin Log</string>
     <string name="btn_clear_log">🗑️ Bersihkan</string>
+    <string name="copied_toast">Log berhasil disalin ke clipboard!</string>
 </resources>

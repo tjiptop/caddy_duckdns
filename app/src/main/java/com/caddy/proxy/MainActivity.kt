@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,10 +36,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etBackendPort: TextInputEditText
     private lateinit var etListenPort: TextInputEditText
     private lateinit var etManualIp: AutoCompleteTextView
+    private lateinit var cbDisableLog: MaterialCheckBox
     private lateinit var btnSave: Button
     private lateinit var btnToggle: Button
     private lateinit var tvStatus: TextView
-    private lateinit var tvLogServerLink: TextView
     private lateinit var btnCopyLog: Button
     private lateinit var btnClearLog: Button
     private lateinit var tvLogs: TextView
@@ -57,7 +58,6 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsIfNeeded()
         detectLocalIp()
         setupListeners()
-        LogServer.start({ java.io.File(filesDir, "certs").apply { mkdirs() } }) { CaddyService.getLogs() }
     }
 
     private fun initViews() {
@@ -68,22 +68,23 @@ class MainActivity : AppCompatActivity() {
         etBackendPort = findViewById(R.id.etBackendPort)
         etListenPort = findViewById(R.id.etListenPort)
         etManualIp = findViewById(R.id.etManualIp)
+        cbDisableLog = findViewById(R.id.cbDisableLog)
         btnSave = findViewById(R.id.btnSave)
         btnToggle = findViewById(R.id.btnToggle)
         tvStatus = findViewById(R.id.tvStatus)
-        tvLogServerLink = findViewById(R.id.tvLogServerLink)
         btnCopyLog = findViewById(R.id.btnCopyLog)
         btnClearLog = findViewById(R.id.btnClearLog)
         tvLogs = findViewById(R.id.tvLogs)
     }
 
     private fun loadSavedConfig() {
-        etDomain.setText(prefs.getString("domain", "tjipto.duckdns.org"))
+        etDomain.setText(prefs.getString("domain", ""))
         etToken.setText(prefs.getString("token", ""))
         etBackendHost.setText(prefs.getString("backend_host", "127.0.0.1"))
         etBackendPort.setText(prefs.getString("backend_port", "8090"))
         etListenPort.setText(prefs.getString("listen_port", "8443"))
         etManualIp.setText(prefs.getString("manual_ip", ""))
+        cbDisableLog.isChecked = prefs.getBoolean("disable_log", true)
         updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Running" else "Stopped")
 
         val existingLogs = CaddyService.getLogs()
@@ -102,6 +103,7 @@ class MainActivity : AppCompatActivity() {
             .putString("backend_port", etBackendPort.text?.toString()?.trim())
             .putString("listen_port", etListenPort.text?.toString()?.trim())
             .putString("manual_ip", etManualIp.text?.toString()?.trim())
+            .putBoolean("disable_log", cbDisableLog.isChecked)
             .apply()
     }
 
@@ -112,7 +114,6 @@ class MainActivity : AppCompatActivity() {
             withContext(Dispatchers.Main) {
                 detectedIps = allIps
                 tvDetectedIp.text = "IP Hotspot/WLAN: $ip (Tap untuk refresh)"
-                tvLogServerLink.text = "HTTP Log URL: http://$ip:8088/logs"
 
                 val dropdownItems = mutableListOf<String>()
                 dropdownItems.add("(Auto-detect IP)")
@@ -147,14 +148,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Memindai ulang IP adapter jaringan...", Toast.LENGTH_SHORT).show()
         }
 
-        tvLogServerLink.setOnClickListener {
-            val linkText = tvLogServerLink.text.toString().removePrefix("HTTP Log URL: ").trim()
-            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("Log URL", linkText)
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(this, "URL Log disalin: $linkText", Toast.LENGTH_SHORT).show()
-        }
-
         btnCopyLog.setOnClickListener {
             val logs = CaddyService.getLogs().ifBlank { logBuffer.toString() }
             if (logs.isBlank()) {
@@ -163,7 +156,7 @@ class MainActivity : AppCompatActivity() {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("Caddy Logs", logs)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(this, "Log disalin ke clipboard! Siap di-paste", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.copied_toast), Toast.LENGTH_LONG).show()
             }
         }
 
@@ -231,6 +224,7 @@ class MainActivity : AppCompatActivity() {
             putExtra(CaddyService.EXTRA_BACKEND_PORT, backendPort)
             putExtra(CaddyService.EXTRA_LISTEN_PORT, listenPort)
             putExtra(CaddyService.EXTRA_MANUAL_IP, manualIp)
+            putExtra(CaddyService.EXTRA_DISABLE_LOG, cbDisableLog.isChecked)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
