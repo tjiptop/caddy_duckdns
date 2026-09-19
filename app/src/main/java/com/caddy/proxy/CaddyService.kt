@@ -78,7 +78,12 @@ class CaddyService : Service() {
             }
             ACTION_STOP -> {
                 stopCaddy()
-                stopForeground(STOP_FOREGROUND_REMOVE)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
                 stopSelf()
             }
         }
@@ -222,6 +227,12 @@ $domain:$listenPort {
     }
 
     private fun buildNotification(text: String): Notification {
+        val flagImmutable = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PendingIntent.FLAG_IMMUTABLE
+        } else {
+            0
+        }
+
         val stopIntent = Intent(this, CaddyService::class.java).apply {
             action = ACTION_STOP
         }
@@ -229,7 +240,7 @@ $domain:$listenPort {
             this,
             1,
             stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or flagImmutable
         )
 
         val mainIntent = Intent(this, MainActivity::class.java)
@@ -237,7 +248,7 @@ $domain:$listenPort {
             this,
             0,
             mainIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or flagImmutable
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
