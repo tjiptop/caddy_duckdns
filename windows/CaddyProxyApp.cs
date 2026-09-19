@@ -35,6 +35,7 @@ namespace CaddyProxyWindows
         private TextBox txtListenPort;
         private ComboBox cmbManualIp;
         private Button btnRefreshIp;
+        private CheckBox chkDisableLog;
         private Button btnSave;
         private Button btnToggle;
         private Label lblStatus;
@@ -98,7 +99,7 @@ namespace CaddyProxyWindows
             mainLayout.RowCount = 5;
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Title
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // IP Label
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 310)); // Config Box
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 345)); // Config Box
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // Log Header
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Logs
             this.Controls.Add(mainLayout);
@@ -180,7 +181,20 @@ namespace CaddyProxyWindows
             card.Controls.Add(txtListenPort);
             card.Controls.Add(cmbManualIp);
             card.Controls.Add(btnRefreshIp);
-            y += 44;
+            y += 36;
+
+            // Checkbox Matikan Log (Default: Checked / Disabled)
+            chkDisableLog = new CheckBox {
+                Text = "Matikan Log Akses (Disable Logging)",
+                Location = new Point(180, y),
+                Size = new Size(350, 24),
+                ForeColor = Color.FromArgb(220, 220, 220),
+                Font = new Font("Segoe UI", 9F),
+                Checked = true
+            };
+            tt.SetToolTip(chkDisableLog, "Jika dicentang, Caddy tidak mencetak request log ke console (menghemat resource CPU/RAM & server lebih cepat)");
+            card.Controls.Add(chkDisableLog);
+            y += 34;
 
             // Buttons: Save & Start/Stop
             btnSave = new Button {
@@ -447,6 +461,7 @@ namespace CaddyProxyWindows
             // Generate Caddyfile
             string caddyfilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Caddyfile");
             string redirTarget = (listenPort == "443") ? "https://{host}{uri}" : ("https://{host}:" + listenPort + "{uri}");
+            string logSection = chkDisableLog.Checked ? "" : "    log {\n        output stdout\n        format console\n    }\n";
 
             string caddyConfig = "{\n" +
                                  "    admin off\n" +
@@ -460,10 +475,7 @@ namespace CaddyProxyWindows
                                  "        dns duckdns " + token + "\n" +
                                  "        resolvers 8.8.8.8 8.8.4.4\n" +
                                  "    }\n" +
-                                 "    log {\n" +
-                                 "        output stdout\n" +
-                                 "        format console\n" +
-                                 "    }\n" +
+                                 logSection +
                                  "    reverse_proxy " + host + ":" + port + " {\n" +
                                  "        header_up Host {host}\n" +
                                  "        header_up X-Real-IP {remote_host}\n" +
@@ -485,8 +497,18 @@ namespace CaddyProxyWindows
                 };
 
                 caddyProcess = new Process { StartInfo = psi };
-                caddyProcess.OutputDataReceived += (s, e) => { if (e.Data != null) AppendLog("[Caddy] " + e.Data); };
-                caddyProcess.ErrorDataReceived += (s, e) => { if (e.Data != null) AppendLog("[Caddy Log] " + e.Data); };
+                caddyProcess.OutputDataReceived += (s, e) => {
+                    if (e.Data != null) {
+                        if (!chkDisableLog.Checked || e.Data.Contains("\"level\":\"error\"") || e.Data.Contains("ERROR"))
+                            AppendLog("[Caddy] " + e.Data);
+                    }
+                };
+                caddyProcess.ErrorDataReceived += (s, e) => {
+                    if (e.Data != null) {
+                        if (!chkDisableLog.Checked || e.Data.Contains("\"level\":\"error\"") || e.Data.Contains("ERROR"))
+                            AppendLog("[Caddy Log] " + e.Data);
+                    }
+                };
 
                 caddyProcess.Start();
                 caddyProcess.BeginOutputReadLine();
@@ -499,6 +521,10 @@ namespace CaddyProxyWindows
                 lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
                 string urlDisplay = "https://" + domain + (listenPort == "443" ? "" : ":" + listenPort);
                 AppendLog("Caddy aktif! Buka browser: " + urlDisplay);
+                if (chkDisableLog.Checked)
+                {
+                    AppendLog("ℹ️ Log akses dinonaktifkan (mode hemat resource). Hilangkan centang 'Matikan Log' jika ingin memantau traffic.");
+                }
             }
             catch (Exception ex)
             {
@@ -585,7 +611,8 @@ namespace CaddyProxyWindows
                               "  \"host\": \"" + txtBackendHost.Text.Replace("\"", "\\\"") + "\",\n" +
                               "  \"port\": \"" + txtBackendPort.Text.Replace("\"", "\\\"") + "\",\n" +
                               "  \"listenPort\": \"" + txtListenPort.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"manualIp\": \"" + GetSelectedIp().Replace("\"", "\\\"") + "\"\n" +
+                              "  \"manualIp\": \"" + GetSelectedIp().Replace("\"", "\\\"") + "\",\n" +
+                              "  \"disableLog\": " + (chkDisableLog.Checked ? "true" : "false") + "\n" +
                               "}";
                 File.WriteAllText(configFile, json);
             }
@@ -609,9 +636,32 @@ namespace CaddyProxyWindows
                     {
                         cmbManualIp.Text = savedIp;
                     }
+                    chkDisableLog.Checked = ExtractJsonBool(content, "disableLog", true);
                 }
             }
             catch { }
+        }
+
+        private bool ExtractJsonBool(string json, string key, bool def)
+        {
+            try
+            {
+                string search = "\"" + key + "\":";
+                int idx = json.IndexOf(search);
+                if (idx >= 0)
+                {
+                    int start = idx + search.Length;
+                    int end = json.IndexOfAny(new char[] { ',', '\n', '\r', '}' }, start);
+                    if (end > start)
+                    {
+                        string val = json.Substring(start, end - start).Trim().ToLower();
+                        if (val == "true") return true;
+                        if (val == "false") return false;
+                    }
+                }
+            }
+            catch { }
+            return def;
         }
 
         private string ExtractJsonValue(string json, string key, string def)

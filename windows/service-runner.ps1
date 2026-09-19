@@ -50,6 +50,7 @@ $host = "127.0.0.1"
 $port = "8090"
 $listenPort = "8443"
 $manualIp = ""
+$disableLog = $true
 
 if (Test-Path $configFile) {
     try {
@@ -60,7 +61,8 @@ if (Test-Path $configFile) {
         if ($json.port) { $port = $json.port }
         if ($json.listenPort) { $listenPort = $json.listenPort }
         if ($json.manualIp) { $manualIp = $json.manualIp }
-        Log-Message "Konfigurasi dimuat dari $configFile"
+        if ($null -ne $json.disableLog) { $disableLog = [bool]$json.disableLog }
+        Log-Message "Konfigurasi dimuat dari $configFile (disableLog: $disableLog)"
     } catch {
         Log-Message "Gagal mem-parsing config file: $($_.Exception.Message)"
     }
@@ -107,8 +109,16 @@ if (-not [string]::IsNullOrWhiteSpace($token)) {
 }
 
 # 5. Buat Caddyfile
-# 5. Buat Caddyfile
 $redirTarget = if ($listenPort -eq "443") { "https://{host}{uri}" } else { "https://{host}:$listenPort{uri}" }
+$logSection = if (-not $disableLog) {
+@"
+    log {
+        output stdout
+        format console
+    }
+"@
+} else { "" }
+
 $caddyConfig = @"
 {
     admin off
@@ -124,10 +134,7 @@ $domain`:$listenPort {
         dns duckdns $token
         resolvers 8.8.8.8 8.8.4.4
     }
-    log {
-        output stdout
-        format console
-    }
+$logSection
     reverse_proxy $host`:$port {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
