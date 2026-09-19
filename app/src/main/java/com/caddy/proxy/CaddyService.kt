@@ -188,6 +188,8 @@ $cleanDomain:$cleanListenPort {
                 val pb = ProcessBuilder(
                     binaryFile.absolutePath,
                     "run",
+                    "--adapter",
+                    "caddyfile",
                     "--config",
                     caddyFile.absolutePath
                 )

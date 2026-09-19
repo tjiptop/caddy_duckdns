@@ -1,6 +1,8 @@
 package com.caddy.proxy
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
@@ -35,6 +37,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etManualIp: AutoCompleteTextView
     private lateinit var btnSave: Button
     private lateinit var btnToggle: Button
+    private lateinit var btnCopyLog: Button
+    private lateinit var btnClearLog: Button
     private lateinit var tvStatus: TextView
     private lateinit var tvLogs: TextView
 
@@ -64,6 +68,8 @@ class MainActivity : AppCompatActivity() {
         etManualIp = findViewById(R.id.etManualIp)
         btnSave = findViewById(R.id.btnSave)
         btnToggle = findViewById(R.id.btnToggle)
+        btnCopyLog = findViewById(R.id.btnCopyLog)
+        btnClearLog = findViewById(R.id.btnClearLog)
         tvStatus = findViewById(R.id.tvStatus)
         tvLogs = findViewById(R.id.tvLogs)
     }
@@ -143,13 +149,31 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        btnCopyLog.setOnClickListener {
+            val contentToCopy = if (logBuffer.isNotEmpty()) {
+                logBuffer.toString()
+            } else {
+                tvLogs.text.toString()
+            }
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Caddy Logs", contentToCopy)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "Log berhasil disalin ke clipboard! Silakan paste.", Toast.LENGTH_LONG).show()
+        }
+
+        btnClearLog.setOnClickListener {
+            logBuffer.setLength(0)
+            tvLogs.text = "(Log telah dibersihkan)\n"
+            Toast.makeText(this, "Log dibersihkan", Toast.LENGTH_SHORT).show()
+        }
+
         CaddyService.logListener = { message ->
             runOnUiThread {
                 logBuffer.append(message).append("\n")
-                // Keep max 100 lines
+                // Keep max 300 lines
                 val lines = logBuffer.lines()
-                if (lines.size > 120) {
-                    val trimmed = lines.takeLast(100).joinToString("\n")
+                if (lines.size > 350) {
+                    val trimmed = lines.takeLast(300).joinToString("\n")
                     logBuffer.setLength(0)
                     logBuffer.append(trimmed).append("\n")
                 }
