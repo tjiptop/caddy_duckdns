@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
         requestPermissionsIfNeeded()
         detectLocalIp()
         setupListeners()
-        LogServer.start { CaddyService.getLogs() }
+        LogServer.start({ java.io.File(filesDir, "certs").apply { mkdirs() } }) { CaddyService.getLogs() }
     }
 
     private fun initViews() {

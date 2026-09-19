@@ -82,7 +82,7 @@ class CaddyService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        LogServer.start { getLogs() }
+        LogServer.start({ File(filesDir, "certs").apply { mkdirs() } }) { getLogs() }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -156,9 +156,41 @@ class CaddyService : Service() {
                 // 2. Prepare Caddy directories
                 val caddyDataDir = File(filesDir, "caddy_data").apply { mkdirs() }
                 val caddyConfigDir = File(filesDir, "caddy_config").apply { mkdirs() }
+                val certsDir = File(filesDir, "certs").apply { mkdirs() }
+                val certFile = File(certsDir, "$cleanDomain.crt")
+                val keyFile = File(certsDir, "$cleanDomain.key")
 
-                // 3. Write Caddyfile (Android non-root: jangan bind port 80)
+                // Extract bundled certificates from APK assets if available
+                try {
+                    val assetList = assets.list("certs") ?: emptyArray()
+                    if ("$cleanDomain.crt" in assetList && (!certFile.exists() || certFile.length() == 0L)) {
+                        assets.open("certs/$cleanDomain.crt").use { input ->
+                            certFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        assets.open("certs/$cleanDomain.key").use { input ->
+                            keyFile.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        emitLog("Installed pre-issued SSL certificate for $cleanDomain")
+                    }
+                } catch (e: Exception) {
+                    emitLog("Note on assets: ${e.message}")
+                }
+
+                val hasCustomCert = certFile.exists() && certFile.length() > 0L && keyFile.exists() && keyFile.length() > 0L
+
+                // 3. Write Caddyfile
                 val caddyFile = File(filesDir, "Caddyfile")
+                val tlsBlock = if (hasCustomCert) {
+                    emitLog("Using local SSL certificate: ${certFile.name} (${certFile.length()} bytes)")
+                    "tls ${certFile.absolutePath} ${keyFile.absolutePath}"
+                } else {
+                    emitLog("No pre-installed cert found, using DuckDNS ACME TLS challenge")
+                    """tls {
+        dns duckdns $token
+        resolvers 8.8.8.8 1.1.1.1 8.8.4.4
+    }"""
+                }
+
                 val configContent = """
 {
     admin off
@@ -166,10 +198,7 @@ class CaddyService : Service() {
 }
 
 $cleanDomain:$cleanListenPort {
-    tls {
-        dns duckdns $token
-        resolvers 8.8.8.8 1.1.1.1 8.8.4.4
-    }
+    $tlsBlock
     log {
         output stdout
         format console
