@@ -118,27 +118,27 @@ namespace CaddyProxyWindows
                     string content = File.ReadAllText(configFile);
                     domain = ExtractJsonValue(content, "domain", domain);
                     token = ExtractJsonValue(content, "token", token);
-                    host = ExtractJsonValue(content, "host", host);
-                    port = ExtractJsonValue(content, "port", port);
-                    listenPort = ExtractJsonValue(content, "listenPort", listenPort);
-                    manualIp = ExtractJsonValue(content, "manualIp", manualIp);
-                    disableLog = ExtractJsonBool(content, "disableLog", disableLog);
+                    host = ExtractJsonValue(content, "backend_host", ExtractJsonValue(content, "host", host));
+                    port = ExtractJsonValue(content, "backend_port", ExtractJsonValue(content, "port", port));
+                    listenPort = ExtractJsonValue(content, "listen_port", ExtractJsonValue(content, "listenPort", listenPort));
+                    manualIp = ExtractJsonValue(content, "manual_ip", ExtractJsonValue(content, "manualIp", manualIp));
+                    disableLog = ExtractJsonBool(content, "disable_log", ExtractJsonBool(content, "disableLog", disableLog));
                 }
                 catch { }
             }
 
-            // 2. Override with CLI args
+            // 2. Override with CLI args (supports Android parameter naming & standard flags)
             for (int i = 0; i < args.Length; i++)
             {
-                string key = args[i].TrimStart('-', '/').ToLowerInvariant();
+                string key = args[i].TrimStart('-', '/').ToLowerInvariant().Replace("_", "").Replace("-", "");
                 if ((key == "domain" || key == "d") && i + 1 < args.Length) domain = args[++i];
                 else if ((key == "token" || key == "t") && i + 1 < args.Length) token = args[++i];
-                else if ((key == "host" || key == "h") && i + 1 < args.Length) host = args[++i];
-                else if ((key == "port" || key == "p") && i + 1 < args.Length) port = args[++i];
-                else if ((key == "listen" || key == "l" || key == "listenport") && i + 1 < args.Length) listenPort = args[++i];
-                else if ((key == "ip" || key == "manualip") && i + 1 < args.Length) manualIp = args[++i];
-                else if (key == "disablelog" || key == "disable-log") disableLog = true;
-                else if (key == "enablelog" || key == "enable-log") disableLog = false;
+                else if ((key == "backendhost" || key == "host" || key == "h") && i + 1 < args.Length) host = args[++i];
+                else if ((key == "backendport" || key == "port" || key == "p") && i + 1 < args.Length) port = args[++i];
+                else if ((key == "listenport" || key == "listen" || key == "l") && i + 1 < args.Length) listenPort = args[++i];
+                else if ((key == "manualip" || key == "ip") && i + 1 < args.Length) manualIp = args[++i];
+                else if (key == "disablelog") disableLog = true;
+                else if (key == "enablelog") disableLog = false;
             }
 
             Action<string> serviceLog = delegate(string msg) {
@@ -367,7 +367,7 @@ namespace CaddyProxyWindows
 
             // IP Status
             lblIp = new Label {
-                Text = "IP Lokal / Hotspot: Mendeteksi...",
+                Text = "IP Hotspot/WLAN: Mendeteksi...",
                 ForeColor = Color.FromArgb(0, 230, 118),
                 Font = new Font("Segoe UI", 10F),
                 Dock = DockStyle.Fill
@@ -396,14 +396,14 @@ namespace CaddyProxyWindows
             y += 36;
 
             // Backend Host & Port
-            Label lHost = new Label { Text = "Target Host & Port:", ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
+            Label lHost = new Label { Text = "Backend Target Host & Port:", ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
             txtBackendHost = new TextBox { Text = "127.0.0.1", Location = new Point(180, y), Size = new Size(240, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
             txtBackendPort = new TextBox { Text = "8090", Location = new Point(430, y), Size = new Size(170, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
             card.Controls.Add(lHost); card.Controls.Add(txtBackendHost); card.Controls.Add(txtBackendPort);
             y += 36;
 
             // Listen Port & Manual IP Dropdown
-            Label lListen = new Label { Text = "HTTPS Port & Custom IP:", UseMnemonic = false, ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
+            Label lListen = new Label { Text = "HTTPS Port & Override IP:", UseMnemonic = false, ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
             txtListenPort = new TextBox { Text = "8443", Location = new Point(180, y), Size = new Size(80, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
 
             cmbManualIp = new ComboBox {
@@ -857,14 +857,25 @@ namespace CaddyProxyWindows
         {
             try
             {
+                string bHost = txtBackendHost.Text.Replace("\"", "\\\"");
+                string bPort = txtBackendPort.Text.Replace("\"", "\\\"");
+                string lPort = txtListenPort.Text.Replace("\"", "\\\"");
+                string mIp = GetSelectedIp().Replace("\"", "\\\"");
+                string dLog = chkDisableLog.Checked ? "true" : "false";
+
                 string json = "{\n" +
                               "  \"domain\": \"" + txtDomain.Text.Replace("\"", "\\\"") + "\",\n" +
                               "  \"token\": \"" + txtToken.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"host\": \"" + txtBackendHost.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"port\": \"" + txtBackendPort.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"listenPort\": \"" + txtListenPort.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"manualIp\": \"" + GetSelectedIp().Replace("\"", "\\\"") + "\",\n" +
-                              "  \"disableLog\": " + (chkDisableLog.Checked ? "true" : "false") + "\n" +
+                              "  \"backend_host\": \"" + bHost + "\",\n" +
+                              "  \"backend_port\": \"" + bPort + "\",\n" +
+                              "  \"listen_port\": \"" + lPort + "\",\n" +
+                              "  \"manual_ip\": \"" + mIp + "\",\n" +
+                              "  \"disable_log\": " + dLog + ",\n" +
+                              "  \"host\": \"" + bHost + "\",\n" +
+                              "  \"port\": \"" + bPort + "\",\n" +
+                              "  \"listenPort\": \"" + lPort + "\",\n" +
+                              "  \"manualIp\": \"" + mIp + "\",\n" +
+                              "  \"disableLog\": " + dLog + "\n" +
                               "}";
                 File.WriteAllText(configFile, json);
             }
@@ -880,15 +891,15 @@ namespace CaddyProxyWindows
                     string content = File.ReadAllText(configFile);
                     txtDomain.Text = ExtractJsonValue(content, "domain", "tjipto.duckdns.org");
                     txtToken.Text = ExtractJsonValue(content, "token", "");
-                    txtBackendHost.Text = ExtractJsonValue(content, "host", "127.0.0.1");
-                    txtBackendPort.Text = ExtractJsonValue(content, "port", "8090");
-                    txtListenPort.Text = ExtractJsonValue(content, "listenPort", "8443");
-                    string savedIp = ExtractJsonValue(content, "manualIp", "");
+                    txtBackendHost.Text = ExtractJsonValue(content, "backend_host", ExtractJsonValue(content, "host", "127.0.0.1"));
+                    txtBackendPort.Text = ExtractJsonValue(content, "backend_port", ExtractJsonValue(content, "port", "8090"));
+                    txtListenPort.Text = ExtractJsonValue(content, "listen_port", ExtractJsonValue(content, "listenPort", "8443"));
+                    string savedIp = ExtractJsonValue(content, "manual_ip", ExtractJsonValue(content, "manualIp", ""));
                     if (!string.IsNullOrEmpty(savedIp))
                     {
                         cmbManualIp.Text = savedIp;
                     }
-                    chkDisableLog.Checked = ExtractJsonBool(content, "disableLog", true);
+                    chkDisableLog.Checked = ExtractJsonBool(content, "disable_log", ExtractJsonBool(content, "disableLog", true));
                 }
             }
             catch { }

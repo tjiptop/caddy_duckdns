@@ -95,7 +95,7 @@ begin
   // Host & Port Backend
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
-  lbl.Caption := 'Backend Target Host & Port (Aplikasi Lokal):';
+  lbl.Caption := 'Backend Target Host & Backend Target Port:';
   lbl.Left := 0;
   lbl.Top := y;
   edHost := TNewEdit.Create(ConfigPage);
@@ -113,10 +113,10 @@ begin
   edPort.Text := '8090';
   y := y + 46;
 
-  // HTTPS Listen Port & Custom IP
+  // HTTPS Listen Port & Hotspot IP Override
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
-  lbl.Caption := 'Port HTTPS Masuk & IP Khusus (Kosongkan jika auto-detect):';
+  lbl.Caption := 'HTTPS Listen Port & Hotspot IP Override (Opsional):';
   lbl.Left := 0;
   lbl.Top := y;
   edListenPort := TNewEdit.Create(ConfigPage);
@@ -171,7 +171,7 @@ begin
     NssmExe := AppPath + '\nssm.exe';
     ConfigFile := AppPath + '\caddy_proxy_config.json';
 
-    // 1. Simpan konfigurasi ke caddy_proxy_config.json
+    // 1. Simpan konfigurasi ke caddy_proxy_config.json (Sinkron dengan format APK)
     if chkDisableLog.Checked then
       DisableLogStr := 'true'
     else
@@ -180,6 +180,11 @@ begin
     JsonContent := '{\n' +
       '  "domain": "' + edDomain.Text + '",\n' +
       '  "token": "' + edToken.Text + '",\n' +
+      '  "backend_host": "' + edHost.Text + '",\n' +
+      '  "backend_port": "' + edPort.Text + '",\n' +
+      '  "listen_port": "' + edListenPort.Text + '",\n' +
+      '  "manual_ip": "' + edManualIp.Text + '",\n' +
+      '  "disable_log": ' + DisableLogStr + ',\n' +
       '  "host": "' + edHost.Text + '",\n' +
       '  "port": "' + edPort.Text + '",\n' +
       '  "listenPort": "' + edListenPort.Text + '",\n' +
@@ -213,12 +218,12 @@ begin
       Exec(NssmExe, 'stop CaddyProxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Exec(NssmExe, 'remove CaddyProxy confirm', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-      // Argumen untuk CaddyProxy.exe
-      NssmArgs := '-service -domain "' + edDomain.Text + '" -token "' + edToken.Text + '" -host "' + edHost.Text + '" -port "' + edPort.Text + '" -listen "' + edListenPort.Text + '"';
+      // Argumen untuk CaddyProxy.exe (format sinkron dengan parameter APK)
+      NssmArgs := '-service -domain "' + edDomain.Text + '" -token "' + edToken.Text + '" -backend-host "' + edHost.Text + '" -backend-port "' + edPort.Text + '" -listen-port "' + edListenPort.Text + '"';
       if Trim(edManualIp.Text) <> '' then
-        NssmArgs := NssmArgs + ' -ip "' + edManualIp.Text + '"';
+        NssmArgs := NssmArgs + ' -manual-ip "' + edManualIp.Text + '"';
       if chkDisableLog.Checked then
-        NssmArgs := NssmArgs + ' -disableLog';
+        NssmArgs := NssmArgs + ' -disable-log';
 
       // Pasang service dengan NSSM
       Exec(NssmExe, 'install CaddyProxy "' + AppPath + '\CaddyProxy.exe" ' + NssmArgs, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);

@@ -119,10 +119,15 @@ class CaddyService : Service() {
 
                 // 3. Write Caddyfile
                 val caddyFile = File(filesDir, "Caddyfile")
+                val redirTarget = if (listenPort == "443") "https://{host}{uri}" else "https://{host}:$listenPort{uri}"
                 val configContent = """
 {
     admin off
     auto_https disable_redirects
+}
+
+http://$domain {
+    redir $redirTarget permanent
 }
 
 $domain:$listenPort {
@@ -130,7 +135,10 @@ $domain:$listenPort {
         dns duckdns $token
         resolvers 8.8.8.8 8.8.4.4
     }
-    reverse_proxy $backendHost:$backendPort
+    reverse_proxy $backendHost:$backendPort {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
 }
 """.trimIndent()
                 caddyFile.writeText(configContent)

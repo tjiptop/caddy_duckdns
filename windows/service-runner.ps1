@@ -57,11 +57,11 @@ if (Test-Path $configFile) {
         $json = Get-Content $configFile -Raw | ConvertFrom-Json
         if ($json.domain) { $domain = $json.domain }
         if ($json.token) { $token = $json.token }
-        if ($json.host) { $host = $json.host }
-        if ($json.port) { $port = $json.port }
-        if ($json.listenPort) { $listenPort = $json.listenPort }
-        if ($json.manualIp) { $manualIp = $json.manualIp }
-        if ($null -ne $json.disableLog) { $disableLog = [bool]$json.disableLog }
+        if ($json.backend_host) { $host = $json.backend_host } elseif ($json.host) { $host = $json.host }
+        if ($json.backend_port) { $port = $json.backend_port } elseif ($json.port) { $port = $json.port }
+        if ($json.listen_port) { $listenPort = $json.listen_port } elseif ($json.listenPort) { $listenPort = $json.listenPort }
+        if ($json.manual_ip) { $manualIp = $json.manual_ip } elseif ($json.manualIp) { $manualIp = $json.manualIp }
+        if ($null -ne $json.disable_log) { $disableLog = [bool]$json.disable_log } elseif ($null -ne $json.disableLog) { $disableLog = [bool]$json.disableLog }
         Log-Message "Konfigurasi dimuat dari $configFile (disableLog: $disableLog)"
     } catch {
         Log-Message "Gagal mem-parsing config file: $($_.Exception.Message)"
