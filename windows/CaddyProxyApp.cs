@@ -168,6 +168,32 @@ namespace CaddyProxyWindows
             card.Controls.Add(btnSave); card.Controls.Add(btnToggle);
             y += 44;
 
+            Button btnService = new Button {
+                Text = "⚙️ Pasang Auto-Start (Windows Service)",
+                Location = new Point(180, y),
+                Size = new Size(420, 30),
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.FromArgb(0, 230, 118),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.5F)
+            };
+            btnService.FlatAppearance.BorderSize = 0;
+            btnService.Click += (s, e) => {
+                SaveConfig();
+                string bat = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Install-Service.bat");
+                if (File.Exists(bat)) {
+                    Process.Start(new ProcessStartInfo {
+                        FileName = bat,
+                        UseShellExecute = true,
+                        Verb = "runas"
+                    });
+                } else {
+                    MessageBox.Show("File Install-Service.bat tidak ditemukan!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            card.Controls.Add(btnService);
+            y += 36;
+
             lblStatus = new Label {
                 Text = "Status: Stopped",
                 ForeColor = Color.FromArgb(244, 67, 54),
