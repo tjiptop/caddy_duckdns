@@ -18,6 +18,9 @@ import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.security.KeyStore
+import java.security.cert.X509Certificate
+import android.util.Base64
 
 class CaddyService : Service() {
 
@@ -143,11 +146,16 @@ class CaddyService : Service() {
 $cleanDomain:$cleanListenPort {
     tls {
         dns duckdns $token
-        resolvers 8.8.8.8 8.8.4.4
+        resolvers 8.8.8.8 1.1.1.1 8.8.4.4
+    }
+    log {
+        output stdout
+        format console
     }
     reverse_proxy $cleanBackendHost:$cleanBackendPort {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-Proto https
     }
 }
 """.trimIndent()
@@ -167,9 +175,11 @@ $cleanDomain:$cleanListenPort {
                     emitLog("ERROR: Caddy binary not found at ${binaryFile.absolutePath}")
                     emitStatus(false, "Binary not found")
                     return@launch
-                }
-
                 binaryFile.setExecutable(true, false)
+
+                // Export System CA Certificates so Go's crypto/x509 can connect to Let's Encrypt / DuckDNS
+                val caCertFile = File(filesDir, "ca-certificates.crt")
+                exportSystemCaCerts(caCertFile)
 
                 emitLog("Starting Caddy process from: ${binaryFile.absolutePath}")
 
@@ -185,10 +195,14 @@ $cleanDomain:$cleanListenPort {
                 env["HOME"] = filesDir.absolutePath
                 env["XDG_DATA_HOME"] = caddyDataDir.absolutePath
                 env["XDG_CONFIG_HOME"] = caddyConfigDir.absolutePath
+                if (caCertFile.exists() && caCertFile.length() > 0) {
+                    env["SSL_CERT_FILE"] = caCertFile.absolutePath
+                    env["SSL_CERT_DIR"] = "/system/etc/security/cacerts"
+                }
 
                 val process = pb.start()
                 caddyProcess = process
-                emitStatus(true, "Running (:8443 -> :$backendPort)")
+                emitStatus(true, "Running (:$cleanListenPort -> :$cleanBackendPort)")
 
                 // Read stdout & stderr
                 launch {
@@ -277,6 +291,53 @@ $cleanDomain:$cleanListenPort {
             .addAction(android.R.drawable.ic_delete, "Stop", stopPendingIntent)
             .setOngoing(true)
             .build()
+    }
+
+    private fun exportSystemCaCerts(outputFile: File) {
+        try {
+            val sb = StringBuilder()
+
+            // 1. Export from AndroidCAStore
+            try {
+                val ks = KeyStore.getInstance("AndroidCAStore")
+                ks.load(null, null)
+                val aliases = ks.aliases()
+                while (aliases.hasMoreElements()) {
+                    val alias = aliases.nextElement()
+                    val cert = ks.getCertificate(alias) as? X509Certificate ?: continue
+                    val encoded = Base64.encodeToString(cert.encoded, Base64.DEFAULT)
+                    sb.append("-----BEGIN CERTIFICATE-----\n")
+                    sb.append(encoded)
+                    sb.append("-----END CERTIFICATE-----\n\n")
+                }
+            } catch (e: Exception) {
+                emitLog("Note: AndroidCAStore error: ${e.message}")
+            }
+
+            // 2. Export from /system/etc/security/cacerts/
+            try {
+                val dir = File("/system/etc/security/cacerts")
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { f ->
+                        if (f.isFile && f.length() > 0) {
+                            try {
+                                val content = f.readText()
+                                if (content.contains("BEGIN CERTIFICATE")) {
+                                    sb.append(content).append("\n\n")
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (sb.isNotEmpty()) {
+                outputFile.writeText(sb.toString())
+                emitLog("CA certificates exported (${outputFile.length()} bytes)")
+            }
+        } catch (e: Exception) {
+            emitLog("Error exporting CA certificates: ${e.message}")
+        }
     }
 
     override fun onDestroy() {
