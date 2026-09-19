@@ -101,6 +101,21 @@ class CaddyService : Service() {
     ) {
         serviceScope.launch {
             try {
+                // Sanitize domain (fix dnsduck typo and add .duckdns.org suffix if missing)
+                var cleanDomain = domain.trim().replace("dnsduck.org", "duckdns.org")
+                if (!cleanDomain.contains(".")) {
+                    cleanDomain = "$cleanDomain.duckdns.org"
+                }
+
+                // Clean backend host and ports
+                val cleanBackendHost = backendHost.trim()
+                    .removePrefix("http://")
+                    .removePrefix("https://")
+                    .trimEnd('/')
+                    .ifBlank { "127.0.0.1" }
+                val cleanBackendPort = backendPort.trim().ifBlank { "8090" }
+                val cleanListenPort = listenPort.trim().ifBlank { "8443" }
+
                 // 1. Determine local IP and update DuckDNS
                 val localIp = if (manualIp.isNotBlank()) {
                     manualIp.trim()
@@ -108,34 +123,29 @@ class CaddyService : Service() {
                     NetworkHelper.getLocalIpAddress()
                 }
                 emitLog("Using Hotspot/Target IP: $localIp")
-                emitLog("Updating DuckDNS record for $domain...")
+                emitLog("Updating DuckDNS record for $cleanDomain...")
 
-                val (ok, updateMsg) = DuckDnsHelper.updateIp(domain, token, localIp)
+                val (ok, updateMsg) = DuckDnsHelper.updateIp(cleanDomain, token, localIp)
                 emitLog(updateMsg)
 
                 // 2. Prepare Caddy directories
                 val caddyDataDir = File(filesDir, "caddy_data").apply { mkdirs() }
                 val caddyConfigDir = File(filesDir, "caddy_config").apply { mkdirs() }
 
-                // 3. Write Caddyfile
+                // 3. Write Caddyfile (Android non-root: jangan bind port 80)
                 val caddyFile = File(filesDir, "Caddyfile")
-                val redirTarget = if (listenPort == "443") "https://{host}{uri}" else "https://{host}:$listenPort{uri}"
                 val configContent = """
 {
     admin off
     auto_https disable_redirects
 }
 
-http://$domain {
-    redir $redirTarget permanent
-}
-
-$domain:$listenPort {
+$cleanDomain:$cleanListenPort {
     tls {
         dns duckdns $token
         resolvers 8.8.8.8 8.8.4.4
     }
-    reverse_proxy $backendHost:$backendPort {
+    reverse_proxy $cleanBackendHost:$cleanBackendPort {
         header_up Host {host}
         header_up X-Real-IP {remote_host}
     }
