@@ -1,0 +1,12 @@
+{
+    admin off
+    auto_https disable_redirects
+}
+
+tjipto.duckdns.org:8443 {
+    tls {
+        dns duckdns YOUR_DUCKDNS_TOKEN_HERE
+        resolvers 8.8.8.8 8.8.4.4
+    }
+    reverse_proxy 127.0.0.1:8090
+}
