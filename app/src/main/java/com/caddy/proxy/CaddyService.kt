@@ -201,14 +201,17 @@ class CaddyService : Service() {
                 // 3. Write Caddyfile
                 val caddyFile = File(filesDir, "Caddyfile")
                 val tlsBlock = if (hasCustomCert) {
-                    emitLog("Using local SSL certificate: ${certFile.name} (${certFile.length()} bytes)")
+                    emitLog("Menggunakan sertifikat SSL lokal: ${certFile.name} (${certFile.length()} bytes)")
                     "tls ${certFile.absolutePath} ${keyFile.absolutePath}"
-                } else {
-                    emitLog("No pre-installed cert found, using DuckDNS ACME TLS challenge")
+                } else if (token.isNotBlank()) {
+                    emitLog("Meminta sertifikat Let's Encrypt resmi via DuckDNS otomatis...")
                     """tls {
         dns duckdns $token
         resolvers 8.8.8.8 1.1.1.1 8.8.4.4
     }"""
+                } else {
+                    emitLog("Mode tanpa token: Menggunakan sertifikat SSL internal mandiri")
+                    "tls internal"
                 }
 
                 val logBlock = if (disableLog) {
@@ -285,6 +288,30 @@ $cleanDomain:$cleanListenPort, :$cleanListenPort {
                 val process = pb.start()
                 caddyProcess = process
                 emitStatus(true, "Running (:$cleanListenPort -> :$cleanBackendPort)")
+
+                // Auto-save Let's Encrypt certificate to persistent storage once issued
+                if (token.isNotBlank()) {
+                    launch(Dispatchers.IO) {
+                        val acmeDir = File(caddyDataDir, "caddy/certificates/acme-v02.api.letsencrypt.org-directory/$cleanDomain")
+                        for (i in 1..40) {
+                            kotlinx.coroutines.delay(3000)
+                            val autoCrt = File(acmeDir, "$cleanDomain.crt")
+                            val autoKey = File(acmeDir, "$cleanDomain.key")
+                            if (autoCrt.exists() && autoCrt.length() > 0L && autoKey.exists() && autoKey.length() > 0L) {
+                                val crtText = autoCrt.readText()
+                                val keyText = autoKey.readText()
+                                prefs.edit()
+                                    .putString("saved_cert_$cleanDomain", crtText)
+                                    .putString("saved_key_$cleanDomain", keyText)
+                                    .apply()
+                                autoCrt.copyTo(certFile, overwrite = true)
+                                autoKey.copyTo(keyFile, overwrite = true)
+                                emitLog("✅ Sertifikat Let's Encrypt otomatis tersimpan permanen!")
+                                break
+                            }
+                        }
+                    }
+                }
 
                 // Read stdout & stderr
                 launch {

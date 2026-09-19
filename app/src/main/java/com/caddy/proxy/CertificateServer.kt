@@ -192,6 +192,19 @@ class CertificateServer(
             }
         }
 
+        // 4. Check caddy_data for automatically obtained Let's Encrypt certificates
+        val caddyDataDir = File(context.filesDir, "caddy_data")
+        val acmeCrt = File(caddyDataDir, "caddy/certificates/acme-v02.api.letsencrypt.org-directory/$domain/$domain.crt")
+        if (acmeCrt.exists() && acmeCrt.length() > 0L) {
+            return acmeCrt.readText()
+        }
+
+        // 5. Check caddy_data for local PKI root certificate (if tls internal is used)
+        val rootCrt = File(caddyDataDir, "caddy/pki/authorities/local/root.crt")
+        if (rootCrt.exists() && rootCrt.length() > 0L) {
+            return rootCrt.readText()
+        }
+
         return null
     }
 
