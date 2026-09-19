@@ -8,6 +8,8 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.widget.AutoCompleteTextView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -30,13 +32,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etBackendHost: TextInputEditText
     private lateinit var etBackendPort: TextInputEditText
     private lateinit var etListenPort: TextInputEditText
-    private lateinit var etManualIp: TextInputEditText
+    private lateinit var etManualIp: AutoCompleteTextView
     private lateinit var btnSave: Button
     private lateinit var btnToggle: Button
     private lateinit var tvStatus: TextView
     private lateinit var tvLogs: TextView
 
     private val logBuffer = StringBuilder()
+    private var detectedIps: List<IpInfo> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,13 +92,44 @@ class MainActivity : AppCompatActivity() {
     private fun detectLocalIp() {
         CoroutineScope(Dispatchers.IO).launch {
             val ip = NetworkHelper.getLocalIpAddress()
+            val allIps = NetworkHelper.getAllLocalIPv4()
             withContext(Dispatchers.Main) {
-                tvDetectedIp.text = "IP Hotspot/WLAN: $ip"
+                detectedIps = allIps
+                tvDetectedIp.text = "IP Hotspot/WLAN: $ip (Tap untuk refresh)"
+
+                val dropdownItems = mutableListOf<String>()
+                dropdownItems.add("(Auto-detect IP)")
+                for (item in allIps) {
+                    dropdownItems.add(item.getDisplayText())
+                }
+
+                val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_dropdown_item_1line, dropdownItems)
+                etManualIp.setAdapter(adapter)
+
+                etManualIp.setOnItemClickListener { _, _, position, _ ->
+                    if (position == 0) {
+                        etManualIp.setText("", false)
+                    } else {
+                        val chosen = allIps.getOrNull(position - 1)
+                        if (chosen != null) {
+                            etManualIp.setText(chosen.ip, false)
+                        }
+                    }
+                }
+
+                etManualIp.setOnClickListener {
+                    etManualIp.showDropDown()
+                }
             }
         }
     }
 
     private fun setupListeners() {
+        tvDetectedIp.setOnClickListener {
+            detectLocalIp()
+            Toast.makeText(this, "Memindai ulang IP adapter jaringan...", Toast.LENGTH_SHORT).show()
+        }
+
         btnSave.setOnClickListener {
             saveConfig()
             Toast.makeText(this, getString(R.string.saved_toast), Toast.LENGTH_SHORT).show()
