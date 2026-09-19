@@ -325,11 +325,11 @@ $cleanDomain:$cleanListenPort {
                                 if (content.contains("BEGIN CERTIFICATE")) {
                                     sb.append(content).append("\n\n")
                                 }
-                            } catch (_: Exception) {}
+                            } catch (e: Exception) {}
                         }
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
 
             if (sb.isNotEmpty()) {
                 outputFile.writeText(sb.toString())
