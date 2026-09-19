@@ -9,24 +9,23 @@ Aplikasi desktop Windows native (GUI Modern Dark Theme) yang memiliki fitur dan 
 
 ---
 
-## 🚀 Cara Menjalankan
+## 🛠️ Instalasi & Optimalisasi Server 1-Click
 
-1. Cukup double-click **shortcut di Desktop**: **`Caddy HTTPS Proxy`**  
-   *(Atau buka langsung file `D:\AIDEV\caddy\windows\CaddyProxy.exe`)*
-2. Masukkan parameter:
-   * **DuckDNS Domain**: `tjipto.duckdns.org`
-   * **DuckDNS Token**: Token API Anda dari duckdns.org
-   * **Target Host & Port**: `127.0.0.1` dan `8090` (Aplikasi lokal yang akan di-forward)
-   * **HTTPS Port**: `8443` (atau port lain)
-   * **Custom IP**: *(Opsional)* Jika dikosongkan, otomatis mendeteksi IP adapter aktif
-3. Klik **Simpan Pengaturan** untuk menyimpan setting.
-4. Klik **Start Caddy Proxy**.
-5. Buka browser di perangkat apa pun di jaringan yang sama:
-   ```
-   https://tjipto.duckdns.org:8443
-   ```
+Agar server berjalan dengan performa maksimal dan tidak diblokir oleh sistem keamanan Windows:
+
+1. Buka folder `D:\AIDEV\caddy\windows\`
+2. Klik kanan file **`Setup.bat`** lalu pilih **"Run as administrator"** (atau cukup double-click `Setup.bat` dan pilih **Yes** pada prompt UAC).
+3. Installer akan otomatis:
+   * **Membuka Windows Firewall**: Mengizinkan program `caddy.exe`, port HTTPS `8443`, port `8090`, dan port `443` untuk koneksi masuk (Inbound).
+   * **Mengoptimalkan Real-time Antivirus**: Menambahkan pengecualian (Exclusion) pada folder instalasi dan proses `caddy.exe` / `CaddyProxy.exe` di Windows Defender, sehingga scanning real-time tidak membebani CPU atau memperlambat lalu lintas streaming kamera/data.
+   * **Memasang Shortcut**: Membuat shortcut resmi di Desktop dan Start Menu Anda.
+
+Untuk menghapus seluruh aturan Firewall dan pengecualian jika tidak lagi digunakan, Anda cukup menjalankan file **`Uninstall.bat`** sebagai Administrator.
 
 ---
+
+## 🚀 Cara Menjalankan Aplikasi
+
 
 ## 🛠️ File di Folder `windows/`
 
