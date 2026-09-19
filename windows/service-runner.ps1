@@ -76,8 +76,11 @@ if ([string]::IsNullOrWhiteSpace($targetIp)) {
             if ($ni.OperationalStatus -eq [System.Net.NetworkInformation.OperationalStatus]::Up -and $ni.NetworkInterfaceType -ne [System.Net.NetworkInformation.NetworkInterfaceType]::Loopback) {
                 foreach ($u in $ni.GetIPProperties().UnicastAddresses) {
                     if ($u.Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
-                        $targetIp = $u.Address.ToString()
-                        break
+                        $candidate = $u.Address.ToString()
+                        if (-not $candidate.StartsWith("169.254")) {
+                            $targetIp = $candidate
+                            break
+                        }
                     }
                 }
             }

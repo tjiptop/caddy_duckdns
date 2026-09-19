@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -12,6 +13,17 @@ using System.Windows.Forms;
 
 namespace CaddyProxyWindows
 {
+    public class IpInfo
+    {
+        public string IP { get; set; }
+        public string InterfaceName { get; set; }
+
+        public override string ToString()
+        {
+            return string.IsNullOrEmpty(InterfaceName) ? IP : string.Format("{0} ({1})", IP, InterfaceName);
+        }
+    }
+
     public class MainForm : Form
     {
         private Label lblTitle;
@@ -21,7 +33,8 @@ namespace CaddyProxyWindows
         private TextBox txtBackendHost;
         private TextBox txtBackendPort;
         private TextBox txtListenPort;
-        private TextBox txtManualIp;
+        private ComboBox cmbManualIp;
+        private Button btnRefreshIp;
         private Button btnSave;
         private Button btnToggle;
         private Label lblStatus;
@@ -129,11 +142,37 @@ namespace CaddyProxyWindows
             card.Controls.Add(lHost); card.Controls.Add(txtBackendHost); card.Controls.Add(txtBackendPort);
             y += 36;
 
-            // Listen Port & Manual IP
-            Label lListen = new Label { Text = "HTTPS Port & Custom IP:", ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
-            txtListenPort = new TextBox { Text = "8443", Location = new Point(180, y), Size = new Size(130, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            txtManualIp = new TextBox { Text = "", Location = new Point(320, y), Size = new Size(280, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
-            card.Controls.Add(lListen); card.Controls.Add(txtListenPort); card.Controls.Add(txtManualIp);
+            // Listen Port & Manual IP Dropdown
+            Label lListen = new Label { Text = "HTTPS Port & Custom IP:", UseMnemonic = false, ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
+            txtListenPort = new TextBox { Text = "8443", Location = new Point(180, y), Size = new Size(80, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
+
+            cmbManualIp = new ComboBox {
+                Location = new Point(268, y),
+                Size = new Size(300, 26),
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                DropDownStyle = ComboBoxStyle.DropDown
+            };
+
+            btnRefreshIp = new Button {
+                Text = "↻",
+                Location = new Point(572, y),
+                Size = new Size(28, 26),
+                BackColor = Color.FromArgb(60, 60, 60),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold)
+            };
+            btnRefreshIp.FlatAppearance.BorderSize = 0;
+            ToolTip tt = new ToolTip();
+            tt.SetToolTip(btnRefreshIp, "Pindai ulang semua IP adapter jaringan");
+            btnRefreshIp.Click += (s, e) => { DetectLocalIp(); };
+
+            card.Controls.Add(lListen);
+            card.Controls.Add(txtListenPort);
+            card.Controls.Add(cmbManualIp);
+            card.Controls.Add(btnRefreshIp);
             y += 44;
 
             // Buttons: Save & Start/Stop
@@ -146,7 +185,10 @@ namespace CaddyProxyWindows
                 FlatStyle = FlatStyle.Flat
             };
             btnSave.FlatAppearance.BorderSize = 0;
-            btnSave.Click += (s, e) => { SaveConfig(); MessageBox.Show("Pengaturan berhasil disimpan!", "Informasi", MessageBoxButtons.OK, MessageBoxIcon.Information); };
+            btnSave.Click += (s, e) => {
+                SaveConfig();
+                MessageBox.Show("Pengaturan berhasil disimpan!", "Informasi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
 
             btnToggle = new Button {
                 Text = "Start Caddy Proxy",
@@ -232,15 +274,51 @@ namespace CaddyProxyWindows
         private void DetectLocalIp()
         {
             Task.Run(() => {
-                string ip = GetLocalIPv4();
+                var ipList = GetAllLocalIPv4();
                 this.Invoke(new Action(() => {
-                    lblIp.Text = "IP Lokal / Hotspot: " + ip;
+                    string currentVal = GetSelectedIp();
+                    cmbManualIp.Items.Clear();
+
+                    foreach (var item in ipList)
+                    {
+                        cmbManualIp.Items.Add(item);
+                    }
+
+                    int selectIdx = -1;
+                    if (!string.IsNullOrEmpty(currentVal))
+                    {
+                        for (int i = 0; i < ipList.Count; i++)
+                        {
+                            if (ipList[i].IP.Equals(currentVal, StringComparison.OrdinalIgnoreCase))
+                            {
+                                selectIdx = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (selectIdx >= 0)
+                    {
+                        cmbManualIp.SelectedIndex = selectIdx;
+                    }
+                    else if (!string.IsNullOrEmpty(currentVal))
+                    {
+                        cmbManualIp.Text = currentVal;
+                    }
+                    else if (ipList.Count > 0)
+                    {
+                        cmbManualIp.SelectedIndex = 0;
+                    }
+
+                    string bestIp = GetSelectedIp();
+                    lblIp.Text = "IP Terdeteksi: " + (string.IsNullOrEmpty(bestIp) ? "127.0.0.1" : bestIp) + " (" + ipList.Count + " adapter ditemukan)";
                 }));
             });
         }
 
-        private string GetLocalIPv4()
+        private List<IpInfo> GetAllLocalIPv4()
         {
+            var list = new List<IpInfo>();
             try
             {
                 foreach (NetworkInterface ni in NetworkInterface.GetAllNetworkInterfaces())
@@ -252,13 +330,52 @@ namespace CaddyProxyWindows
                     {
                         if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            return ip.Address.ToString();
+                            string ipStr = ip.Address.ToString();
+                            if (!list.Exists(x => x.IP == ipStr))
+                            {
+                                list.Add(new IpInfo { IP = ipStr, InterfaceName = ni.Name });
+                            }
                         }
                     }
                 }
             }
             catch { }
-            return "127.0.0.1";
+
+            list.Sort((a, b) => {
+                bool aLink = a.IP.StartsWith("169.254");
+                bool bLink = b.IP.StartsWith("169.254");
+                if (aLink != bLink) return aLink ? 1 : -1;
+                return a.IP.CompareTo(b.IP);
+            });
+
+            return list;
+        }
+
+        private string GetSelectedIp()
+        {
+            IpInfo info = cmbManualIp.SelectedItem as IpInfo;
+            if (info != null)
+            {
+                return info.IP;
+            }
+
+            string text = cmbManualIp.Text.Trim();
+            if (string.IsNullOrEmpty(text)) return "";
+
+            int parenIdx = text.IndexOf(" (");
+            if (parenIdx > 0)
+            {
+                return text.Substring(0, parenIdx).Trim();
+            }
+
+            string[] parts = text.Split(new char[] { ' ', '-' }, StringSplitOptions.RemoveEmptyEntries);
+            IPAddress dummy;
+            if (parts.Length > 0 && IPAddress.TryParse(parts[0], out dummy))
+            {
+                return parts[0];
+            }
+
+            return text;
         }
 
         private async Task StartProxy()
@@ -268,7 +385,7 @@ namespace CaddyProxyWindows
             string host = string.IsNullOrWhiteSpace(txtBackendHost.Text) ? "127.0.0.1" : txtBackendHost.Text.Trim();
             string port = string.IsNullOrWhiteSpace(txtBackendPort.Text) ? "8090" : txtBackendPort.Text.Trim();
             string listenPort = string.IsNullOrWhiteSpace(txtListenPort.Text) ? "8443" : txtListenPort.Text.Trim();
-            string manualIp = txtManualIp.Text.Trim();
+            string manualIp = GetSelectedIp();
 
             if (string.IsNullOrEmpty(domain) || string.IsNullOrEmpty(token))
             {
@@ -285,7 +402,7 @@ namespace CaddyProxyWindows
             SaveConfig();
 
             AppendLog("--- Memulai Caddy HTTPS Proxy ---");
-            string targetIp = string.IsNullOrEmpty(manualIp) ? GetLocalIPv4() : manualIp;
+            string targetIp = string.IsNullOrEmpty(manualIp) ? "127.0.0.1" : manualIp;
             AppendLog("Target IP Lokal: " + targetIp);
 
             // Update DuckDNS
@@ -421,7 +538,7 @@ namespace CaddyProxyWindows
                               "  \"host\": \"" + txtBackendHost.Text.Replace("\"", "\\\"") + "\",\n" +
                               "  \"port\": \"" + txtBackendPort.Text.Replace("\"", "\\\"") + "\",\n" +
                               "  \"listenPort\": \"" + txtListenPort.Text.Replace("\"", "\\\"") + "\",\n" +
-                              "  \"manualIp\": \"" + txtManualIp.Text.Replace("\"", "\\\"") + "\"\n" +
+                              "  \"manualIp\": \"" + GetSelectedIp().Replace("\"", "\\\"") + "\"\n" +
                               "}";
                 File.WriteAllText(configFile, json);
             }
@@ -440,7 +557,11 @@ namespace CaddyProxyWindows
                     txtBackendHost.Text = ExtractJsonValue(content, "host", "127.0.0.1");
                     txtBackendPort.Text = ExtractJsonValue(content, "port", "8090");
                     txtListenPort.Text = ExtractJsonValue(content, "listenPort", "8443");
-                    txtManualIp.Text = ExtractJsonValue(content, "manualIp", "");
+                    string savedIp = ExtractJsonValue(content, "manualIp", "");
+                    if (!string.IsNullOrEmpty(savedIp))
+                    {
+                        cmbManualIp.Text = savedIp;
+                    }
                 }
             }
             catch { }
