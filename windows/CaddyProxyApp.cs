@@ -102,7 +102,7 @@ namespace CaddyProxyWindows
             string caddyExe = Path.Combine(baseDir, "caddy.exe");
             string caddyfilePath = Path.Combine(baseDir, "Caddyfile");
 
-            string domain = "absenku.duckdns.org";
+            string domain = "";
             string token = "";
             string host = "127.0.0.1";
             string port = "8090";
@@ -110,12 +110,13 @@ namespace CaddyProxyWindows
             string manualIp = "";
             bool disableLog = true;
 
-            // 1. Load default from config file if exists
-            if (File.Exists(configFile))
+            // 1. Load default from config file if exists (or setup_config.json)
+            string cfgToRead = File.Exists(configFile) ? configFile : (File.Exists(Path.Combine(baseDir, "setup_config.json")) ? Path.Combine(baseDir, "setup_config.json") : null);
+            if (cfgToRead != null)
             {
                 try
                 {
-                    string content = File.ReadAllText(configFile);
+                    string content = File.ReadAllText(cfgToRead);
                     domain = ExtractJsonValue(content, "domain", domain);
                     token = ExtractJsonValue(content, "token", token);
                     host = ExtractJsonValue(content, "backend_host", ExtractJsonValue(content, "host", host));
@@ -153,6 +154,12 @@ namespace CaddyProxyWindows
 
             serviceLog("=== Caddy HTTPS Proxy Service Runner Memulai ===");
             serviceLog("Domain: " + domain + ", Port: " + listenPort + " -> " + host + ":" + port);
+
+            if (string.IsNullOrEmpty(domain))
+            {
+                serviceLog("PERINGATAN: DuckDNS Domain belum dikonfigurasi! Buka CaddyProxy.exe atau konfigurasi caddy_proxy_config.json.");
+                return;
+            }
 
             // 3. Resolve target IP
             string targetIp = manualIp;
@@ -385,7 +392,7 @@ namespace CaddyProxyWindows
             int y = 10;
             // Domain
             Label lDomain = new Label { Text = "DuckDNS Domain:", ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
-            txtDomain = new TextBox { Text = "tjipto.duckdns.org", Location = new Point(180, y), Size = new Size(420, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
+            txtDomain = new TextBox { Text = "", Location = new Point(180, y), Size = new Size(420, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
             card.Controls.Add(lDomain); card.Controls.Add(txtDomain);
             y += 36;
 
@@ -404,7 +411,7 @@ namespace CaddyProxyWindows
 
             // Listen Port & Manual IP Dropdown
             Label lListen = new Label { Text = "HTTPS Port & Override IP:", UseMnemonic = false, ForeColor = Color.LightGray, Location = new Point(12, y), Size = new Size(160, 22) };
-            txtListenPort = new TextBox { Text = "8443", Location = new Point(180, y), Size = new Size(80, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
+            txtListenPort = new TextBox { Text = "443", Location = new Point(180, y), Size = new Size(80, 26), BackColor = Color.FromArgb(45, 45, 45), ForeColor = Color.White, BorderStyle = BorderStyle.FixedSingle };
 
             cmbManualIp = new ComboBox {
                 Location = new Point(268, y),
@@ -886,14 +893,17 @@ namespace CaddyProxyWindows
         {
             try
             {
-                if (File.Exists(configFile))
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string setupCfg = Path.Combine(baseDir, "setup_config.json");
+                string cfg = File.Exists(configFile) ? configFile : (File.Exists(setupCfg) ? setupCfg : null);
+                if (cfg != null)
                 {
-                    string content = File.ReadAllText(configFile);
-                    txtDomain.Text = ExtractJsonValue(content, "domain", "tjipto.duckdns.org");
+                    string content = File.ReadAllText(cfg);
+                    txtDomain.Text = ExtractJsonValue(content, "domain", "");
                     txtToken.Text = ExtractJsonValue(content, "token", "");
                     txtBackendHost.Text = ExtractJsonValue(content, "backend_host", ExtractJsonValue(content, "host", "127.0.0.1"));
                     txtBackendPort.Text = ExtractJsonValue(content, "backend_port", ExtractJsonValue(content, "port", "8090"));
-                    txtListenPort.Text = ExtractJsonValue(content, "listen_port", ExtractJsonValue(content, "listenPort", "8443"));
+                    txtListenPort.Text = ExtractJsonValue(content, "listen_port", ExtractJsonValue(content, "listenPort", "443"));
                     string savedIp = ExtractJsonValue(content, "manual_ip", ExtractJsonValue(content, "manualIp", ""));
                     if (!string.IsNullOrEmpty(savedIp))
                     {

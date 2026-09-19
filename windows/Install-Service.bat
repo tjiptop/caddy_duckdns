@@ -16,6 +16,37 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+if exist "%~dp0nssm.exe" (
+    echo [1/3] Menggunakan NSSM (Non-Sucking Service Manager)...
+    "%~dp0nssm.exe" stop CaddyProxy >nul 2>&1
+    "%~dp0nssm.exe" remove CaddyProxy confirm >nul 2>&1
+    
+    echo [2/3] Mendaftarkan Service CaddyProxy...
+    "%~dp0nssm.exe" install CaddyProxy "%~dp0CaddyProxy.exe" -service
+    "%~dp0nssm.exe" set CaddyProxy AppDirectory "%~dp0"
+    "%~dp0nssm.exe" set CaddyProxy DisplayName "Caddy DuckDNS HTTPS Proxy"
+    "%~dp0nssm.exe" set CaddyProxy Description "Reverse proxy HTTPS otomatis untuk DuckDNS menggunakan Caddy Server"
+    "%~dp0nssm.exe" set CaddyProxy Start SERVICE_AUTO_START
+    "%~dp0nssm.exe" set CaddyProxy AppStdout "%~dp0service.log"
+    "%~dp0nssm.exe" set CaddyProxy AppStderr "%~dp0service_error.log"
+    "%~dp0nssm.exe" set CaddyProxy AppRotateFiles 1
+    "%~dp0nssm.exe" set CaddyProxy AppRotateOnline 1
+    "%~dp0nssm.exe" set CaddyProxy AppRotateBytes 10485760
+
+    echo [3/3] Menjalankan Service CaddyProxy...
+    "%~dp0nssm.exe" start CaddyProxy
+    echo.
+    echo ================================================================
+    echo   SUKSES: CADDY KINI BERJALAN SEBAGAI WINDOWS SERVICE (NSSM)!
+    echo ================================================================
+    echo - Caddy akan otomatis aktif saat Windows booting via NSSM Service.
+    echo - Log runtime tersimpan di: %~dp0service.log
+    echo - Untuk menonaktifkan, jalankan: Uninstall-Service.bat
+    echo.
+    timeout /t 5
+    exit /b 0
+)
+
 set TASK_NAME=CaddyHttpsServerService
 set RUNNER_SCRIPT=%~dp0service-runner.ps1
 

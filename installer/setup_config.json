@@ -1,0 +1,9 @@
+{
+  "domain": "",
+  "token": "",
+  "backend_host": "127.0.0.1",
+  "backend_port": "8090",
+  "listen_port": "443",
+  "manual_ip": "",
+  "disable_log": true
+}

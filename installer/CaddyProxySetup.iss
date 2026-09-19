@@ -1,7 +1,8 @@
 ; =====================================================================
 ;   Inno Setup Script untuk Caddy HTTPS Reverse Proxy (Windows)
-;   Mendukung setup parameter GUI, membuka port firewall,
-;   mengecualikan real-time scanner Defender, dan memasang NSSM service.
+;   Mendukung setup parameter GUI, membaca konfigurasi setup_config.json,
+;   membuka port firewall, mengecualikan real-time scanner Defender,
+;   dan memasang NSSM service.
 ; =====================================================================
 
 [Setup]
@@ -33,9 +34,14 @@ Source: "..\windows\caddy.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\windows\CaddyProxy.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\windows\nssm.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\windows\Fix-Firewall.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\windows\Install-Service.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\windows\Uninstall-Service.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "setup_config.example.json"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Caddy HTTPS Proxy"; Filename: "{app}\CaddyProxy.exe"
+Name: "{group}\Pasang Service NSSM"; Filename: "{app}\Install-Service.bat"
+Name: "{group}\Hapus Service NSSM"; Filename: "{app}\Uninstall-Service.bat"
 Name: "{group}\Buka Port Firewall"; Filename: "{app}\Fix-Firewall.bat"
 Name: "{group}\Uninstall Caddy HTTPS Proxy"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\Caddy HTTPS Proxy"; Filename: "{app}\CaddyProxy.exe"; Tasks: desktopicon
@@ -52,11 +58,116 @@ var
   chkDisableLog: TNewCheckBox;
   chkInstallService: TNewCheckBox;
 
+function GetJsonValue(JsonStr, Key, DefaultVal: String): String;
+var
+  SearchKey, ValStr: String;
+  P, ColonPos, StartPos, EndPos: Integer;
+begin
+  Result := DefaultVal;
+  SearchKey := '"' + Key + '"';
+  P := Pos(SearchKey, JsonStr);
+  if P > 0 then
+  begin
+    ColonPos := P + Length(SearchKey);
+    while (ColonPos <= Length(JsonStr)) and (JsonStr[ColonPos] <> ':') do
+      ColonPos := ColonPos + 1;
+    if (ColonPos <= Length(JsonStr)) and (JsonStr[ColonPos] = ':') then
+    begin
+      StartPos := ColonPos + 1;
+      while (StartPos <= Length(JsonStr)) and ((JsonStr[StartPos] = ' ') or (JsonStr[StartPos] = #9) or (JsonStr[StartPos] = #13) or (JsonStr[StartPos] = #10)) do
+        StartPos := StartPos + 1;
+      if StartPos <= Length(JsonStr) then
+      begin
+        if JsonStr[StartPos] = '"' then
+        begin
+          StartPos := StartPos + 1;
+          EndPos := StartPos;
+          while (EndPos <= Length(JsonStr)) and (JsonStr[EndPos] <> '"') do
+            EndPos := EndPos + 1;
+          Result := Copy(JsonStr, StartPos, EndPos - StartPos);
+        end
+        else
+        begin
+          EndPos := StartPos;
+          while (EndPos <= Length(JsonStr)) and (JsonStr[EndPos] <> ',') and (JsonStr[EndPos] <> '}') and (JsonStr[EndPos] <> #13) and (JsonStr[EndPos] <> #10) do
+            EndPos := EndPos + 1;
+          ValStr := Trim(Copy(JsonStr, StartPos, EndPos - StartPos));
+          if ValStr <> '' then
+            Result := ValStr;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function GetJsonField(JsonStr, Key1, Key2, DefaultVal: String): String;
+var
+  Val: String;
+begin
+  Val := GetJsonValue(JsonStr, Key1, '');
+  if (Val = '') and (Key2 <> '') then
+    Val := GetJsonValue(JsonStr, Key2, '');
+  if Val = '' then
+    Result := DefaultVal
+  else
+    Result := Val;
+end;
+
+function GetJsonBoolField(JsonStr, Key1, Key2: String; DefaultVal: Boolean): Boolean;
+var
+  ValStr: String;
+begin
+  ValStr := LowerCase(GetJsonField(JsonStr, Key1, Key2, ''));
+  if Pos('true', ValStr) > 0 then
+    Result := True
+  else if Pos('false', ValStr) > 0 then
+    Result := False
+  else
+    Result := DefaultVal;
+end;
+
 procedure InitializeWizard;
 var
   lbl: TLabel;
   y: Integer;
+  ConfigSrcFile, ConfigJson: String;
+  ConfigJsonAnsi: AnsiString;
+  DefDomain, DefToken, DefHost, DefPort, DefListenPort, DefManualIp: String;
+  DefDisableLog: Boolean;
 begin
+  // Nilai default: kosongkan domain, token, manual IP
+  DefDomain := '';
+  DefToken := '';
+  DefHost := '127.0.0.1';
+  DefPort := '8090';
+  DefListenPort := '443';
+  DefManualIp := '';
+  DefDisableLog := True;
+
+  // Baca setup_config.json dari folder installer (atau config terpasang jika reinstall)
+  ConfigSrcFile := ExpandConstant('{src}\setup_config.json');
+  if not FileExists(ConfigSrcFile) then
+    ConfigSrcFile := ExpandConstant('{src}\caddy_setup_config.json');
+  if not FileExists(ConfigSrcFile) then
+    ConfigSrcFile := ExpandConstant('{src}\caddy_proxy_config.json');
+  if not FileExists(ConfigSrcFile) then
+    ConfigSrcFile := ExpandConstant('{autopf}\CaddyProxy\caddy_proxy_config.json');
+
+  if FileExists(ConfigSrcFile) then
+  begin
+    if LoadStringFromFile(ConfigSrcFile, ConfigJsonAnsi) then
+    begin
+      ConfigJson := String(ConfigJsonAnsi);
+      DefDomain := GetJsonField(ConfigJson, 'domain', '', DefDomain);
+      DefToken := GetJsonField(ConfigJson, 'token', '', DefToken);
+      DefHost := GetJsonField(ConfigJson, 'backend_host', 'host', DefHost);
+      DefPort := GetJsonField(ConfigJson, 'backend_port', 'port', DefPort);
+      DefListenPort := GetJsonField(ConfigJson, 'listen_port', 'listenPort', DefListenPort);
+      DefManualIp := GetJsonField(ConfigJson, 'manual_ip', 'manualIp', DefManualIp);
+      DefDisableLog := GetJsonBoolField(ConfigJson, 'disable_log', 'disableLog', DefDisableLog);
+    end;
+  end;
+
   ConfigPage := CreateCustomPage(wpSelectDir,
     'Pengaturan Parameter Caddy & DuckDNS',
     'Tentukan domain, token DuckDNS, port backend, dan opsi Windows Service:');
@@ -66,7 +177,7 @@ begin
   // Domain DuckDNS
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
-  lbl.Caption := 'DuckDNS Domain (contoh: absenku.duckdns.org):';
+  lbl.Caption := 'DuckDNS Domain (contoh: yourname.duckdns.org):';
   lbl.Left := 0;
   lbl.Top := y;
   edDomain := TNewEdit.Create(ConfigPage);
@@ -74,7 +185,7 @@ begin
   edDomain.Left := 0;
   edDomain.Top := y + 16;
   edDomain.Width := 400;
-  edDomain.Text := 'absenku.duckdns.org';
+  edDomain.Text := DefDomain;
   y := y + 46;
 
   // Token DuckDNS
@@ -89,7 +200,7 @@ begin
   edToken.Top := y + 16;
   edToken.Width := 400;
   edToken.PasswordChar := '*';
-  edToken.Text := '4ecb6ff8-642b-44c4-b839-1a5bf1f189d4';
+  edToken.Text := DefToken;
   y := y + 46;
 
   // Host & Port Backend
@@ -103,14 +214,14 @@ begin
   edHost.Left := 0;
   edHost.Top := y + 16;
   edHost.Width := 240;
-  edHost.Text := '127.0.0.1';
+  edHost.Text := DefHost;
 
   edPort := TNewEdit.Create(ConfigPage);
   edPort.Parent := ConfigPage.Surface;
   edPort.Left := 250;
   edPort.Top := y + 16;
   edPort.Width := 150;
-  edPort.Text := '8090';
+  edPort.Text := DefPort;
   y := y + 46;
 
   // HTTPS Listen Port & Hotspot IP Override
@@ -124,14 +235,14 @@ begin
   edListenPort.Left := 0;
   edListenPort.Top := y + 16;
   edListenPort.Width := 120;
-  edListenPort.Text := '443';
+  edListenPort.Text := DefListenPort;
 
   edManualIp := TNewEdit.Create(ConfigPage);
   edManualIp.Parent := ConfigPage.Surface;
   edManualIp.Left := 130;
   edManualIp.Top := y + 16;
   edManualIp.Width := 270;
-  edManualIp.Text := '192.168.2.105';
+  edManualIp.Text := DefManualIp;
   y := y + 46;
 
   // Checkbox Matikan Log
@@ -141,7 +252,7 @@ begin
   chkDisableLog.Top := y;
   chkDisableLog.Width := 400;
   chkDisableLog.Caption := 'Matikan Log Akses (Disable Logging - Sangat disarankan untuk performa server)';
-  chkDisableLog.Checked := True;
+  chkDisableLog.Checked := DefDisableLog;
   y := y + 26;
 
   // Checkbox Pasang Service NSSM
@@ -218,27 +329,41 @@ begin
       Exec(NssmExe, 'stop CaddyProxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
       Exec(NssmExe, 'remove CaddyProxy confirm', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-      // Argumen untuk CaddyProxy.exe (format sinkron dengan parameter APK)
-      NssmArgs := '-service -domain "' + edDomain.Text + '" -token "' + edToken.Text + '" -backend-host "' + edHost.Text + '" -backend-port "' + edPort.Text + '" -listen-port "' + edListenPort.Text + '"';
-      if Trim(edManualIp.Text) <> '' then
-        NssmArgs := NssmArgs + ' -manual-ip "' + edManualIp.Text + '"';
-      if chkDisableLog.Checked then
-        NssmArgs := NssmArgs + ' -disable-log';
+      if (Trim(edDomain.Text) <> '') and (Trim(edToken.Text) <> '') then
+      begin
+        // Argumen untuk CaddyProxy.exe (format sinkron dengan parameter APK)
+        NssmArgs := '-service -domain "' + edDomain.Text + '" -token "' + edToken.Text + '" -backend-host "' + edHost.Text + '" -backend-port "' + edPort.Text + '" -listen-port "' + edListenPort.Text + '"';
+        if Trim(edManualIp.Text) <> '' then
+          NssmArgs := NssmArgs + ' -manual-ip "' + edManualIp.Text + '"';
+        if chkDisableLog.Checked then
+          NssmArgs := NssmArgs + ' -disable-log';
 
-      // Pasang service dengan NSSM
-      Exec(NssmExe, 'install CaddyProxy "' + AppPath + '\CaddyProxy.exe" ' + NssmArgs, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppDirectory "' + AppPath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy DisplayName "Caddy DuckDNS HTTPS Proxy"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy Description "Reverse proxy HTTPS otomatis untuk DuckDNS menggunakan Caddy Server"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy Start SERVICE_AUTO_START', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppStdout "' + AppPath + '\service.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppStderr "' + AppPath + '\service_error.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppRotateFiles 1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppRotateOnline 1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-      Exec(NssmExe, 'set CaddyProxy AppRotateBytes 10485760', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        // Pasang service dengan NSSM
+        Exec(NssmExe, 'install CaddyProxy "' + AppPath + '\CaddyProxy.exe" ' + NssmArgs, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppDirectory "' + AppPath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy DisplayName "Caddy DuckDNS HTTPS Proxy"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy Description "Reverse proxy HTTPS otomatis untuk DuckDNS menggunakan Caddy Server"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy Start SERVICE_AUTO_START', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppStdout "' + AppPath + '\service.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppStderr "' + AppPath + '\service_error.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppRotateFiles 1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppRotateOnline 1', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppRotateBytes 10485760', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-      // Jalankan service
-      Exec(NssmExe, 'start CaddyProxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        // Jalankan service
+        Exec(NssmExe, 'start CaddyProxy', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      end
+      else
+      begin
+        // Jika domain/token belum diisi, pasang service tanpa auto-start
+        Exec(NssmExe, 'install CaddyProxy "' + AppPath + '\CaddyProxy.exe" -service', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppDirectory "' + AppPath + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy DisplayName "Caddy DuckDNS HTTPS Proxy"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy Description "Reverse proxy HTTPS otomatis untuk DuckDNS menggunakan Caddy Server"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy Start SERVICE_DEMAND_START', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppStdout "' + AppPath + '\service.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+        Exec(NssmExe, 'set CaddyProxy AppStderr "' + AppPath + '\service_error.log"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+      end;
     end;
   end;
 end;

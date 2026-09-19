@@ -16,19 +16,18 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
+if exist "%~dp0nssm.exe" (
+    echo [1/2] Menghentikan dan menghapus Service NSSM CaddyProxy...
+    "%~dp0nssm.exe" stop CaddyProxy >nul 2>&1
+    "%~dp0nssm.exe" remove CaddyProxy confirm >nul 2>&1
+    echo       [OK] Service NSSM berhasil dihapus.
+)
+
 set TASK_NAME=CaddyHttpsServerService
 
-echo [1/2] Menghentikan proses Caddy...
+echo [2/2] Menghentikan proses Caddy dan menghapus Task Scheduler jika ada...
 taskkill /F /IM caddy.exe >nul 2>&1
-echo       [OK] Proses Caddy dihentikan.
-
-echo [2/2] Menghapus Service '%TASK_NAME%' dari Task Scheduler...
 schtasks /delete /tn "%TASK_NAME%" /f >nul 2>&1
-if %errorlevel% equ 0 (
-    echo       [OK] Service '%TASK_NAME%' berhasil dihapus.
-) else (
-    echo       [INFO] Service tidak ditemukan di Task Scheduler.
-)
 
 echo.
 echo ================================================================
@@ -38,4 +37,4 @@ echo Caddy tidak akan lagi berjalan otomatis saat Windows booting.
 echo Anda tetap dapat menjalankannya secara manual melalui CaddyProxy.exe.
 echo.
 
-timeout /t 5
+timeout /t 4
