@@ -175,6 +175,7 @@ $cleanDomain:$cleanListenPort {
                     emitLog("ERROR: Caddy binary not found at ${binaryFile.absolutePath}")
                     emitStatus(false, "Binary not found")
                     return@launch
+                }
                 binaryFile.setExecutable(true, false)
 
                 // Export System CA Certificates so Go's crypto/x509 can connect to Let's Encrypt / DuckDNS
