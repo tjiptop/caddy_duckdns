@@ -30,13 +30,13 @@ Write-Host "File CRT : $crtFile ($( (Get-Item $crtFile).Length ) bytes)" -Foregr
 Write-Host "File KEY : $keyFile ($( (Get-Item $keyFile).Length ) bytes)" -ForegroundColor Green
 Write-Host "Target HP: http://$PhoneIp`:$Port/upload-cert" -ForegroundColor Yellow
 
-$crtContent = Get-Content $crtFile -Raw
-$keyContent = Get-Content $keyFile -Raw
+$crtContent = [System.IO.File]::ReadAllText($crtFile)
+$keyContent = [System.IO.File]::ReadAllText($keyFile)
 
 $payload = @{
     domain = $Domain
-    crt = $crtContent
-    key = $keyContent
+    crt = [string]$crtContent
+    key = [string]$keyContent
 } | ConvertTo-Json
 
 $url = "http://$PhoneIp`:$Port/upload-cert"

@@ -350,6 +350,10 @@ class MainActivity : AppCompatActivity() {
                     }
                     updateCertStatus()
                     Toast.makeText(this, "Sertifikat untuk $domain berhasil diterima dan aktif!", Toast.LENGTH_LONG).show()
+                    if (CaddyService.isRunning) {
+                        stopProxy()
+                        btnToggle.postDelayed({ startProxy() }, 1000)
+                    }
                 }
             })
         } else {

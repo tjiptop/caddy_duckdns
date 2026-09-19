@@ -130,7 +130,23 @@ class CertificateServer(
                     handleStatusApi(output)
                 }
 
-                // 4. Client web portal landing page
+                // 4. Live Logs API
+                method == "GET" && (path == "/api/logs" || path == "/logs") -> {
+                    val logs = CaddyService.getLogs()
+                    sendResponse(output, 200, "OK", "text/plain; charset=utf-8", logs.toByteArray(Charsets.UTF_8))
+                }
+
+                // 5. Restart Proxy API
+                method == "POST" && (path == "/api/restart" || path == "/restart") -> {
+                    triggerCaddyRestart(getActiveDomain())
+                    val resp = JSONObject().apply {
+                        put("status", "ok")
+                        put("message", "Caddy restart triggered")
+                    }.toString()
+                    sendResponse(output, 200, "OK", "application/json", resp.toByteArray())
+                }
+
+                // 6. Client web portal landing page
                 method == "GET" -> {
                     handleWebPortal(output)
                 }
@@ -228,6 +244,11 @@ class CertificateServer(
             onLog("Sertifikat SSL untuk $domain berhasil diterima dan disimpan permanen!")
             onCertReceived(domain, crt, key)
 
+            // Auto-restart Caddy if it is currently running so the cert is loaded immediately
+            if (CaddyService.isRunning) {
+                triggerCaddyRestart(domain)
+            }
+
             val success = JSONObject().apply {
                 put("status", "ok")
                 put("message", "Sertifikat untuk $domain berhasil dipasang.")
@@ -242,6 +263,30 @@ class CertificateServer(
                 put("message", e.message ?: "Unknown error")
             }.toString()
             sendResponse(output, 500, "Internal Server Error", "application/json", err.toByteArray())
+        }
+    }
+
+    private fun triggerCaddyRestart(domain: String) {
+        try {
+            val token = prefs.getString("token", "") ?: ""
+            val intent = android.content.Intent(context, CaddyService::class.java).apply {
+                action = CaddyService.ACTION_START
+                putExtra(CaddyService.EXTRA_DOMAIN, domain)
+                putExtra(CaddyService.EXTRA_TOKEN, token)
+                putExtra(CaddyService.EXTRA_BACKEND_HOST, prefs.getString("backend_host", "127.0.0.1"))
+                putExtra(CaddyService.EXTRA_BACKEND_PORT, prefs.getString("backend_port", "8090"))
+                putExtra(CaddyService.EXTRA_LISTEN_PORT, prefs.getString("listen_port", "8443"))
+                putExtra(CaddyService.EXTRA_MANUAL_IP, prefs.getString("manual_ip", ""))
+                putExtra(CaddyService.EXTRA_DISABLE_LOG, prefs.getBoolean("disable_log", true))
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+            onLog("Caddy Proxy otomatis di-restart untuk memuat sertifikat SSL baru.")
+        } catch (e: Exception) {
+            onLog("Catatan restart: ${e.message}")
         }
     }
 
