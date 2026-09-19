@@ -50,9 +50,16 @@ namespace CaddyProxyWindows
         [STAThread]
         public static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainForm());
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new MainForm());
+            }
+            catch (Exception ex)
+            {
+                File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "crash.log"), ex.ToString());
+            }
         }
 
         public MainForm()
@@ -91,7 +98,7 @@ namespace CaddyProxyWindows
             mainLayout.RowCount = 5;
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));  // Title
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // IP Label
-            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 280)); // Config Box
+            mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 310)); // Config Box
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 30));  // Log Header
             mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Logs
             this.Controls.Add(mainLayout);
@@ -210,14 +217,38 @@ namespace CaddyProxyWindows
             card.Controls.Add(btnSave); card.Controls.Add(btnToggle);
             y += 44;
 
-            Button btnService = new Button {
-                Text = "⚙️ Pasang Auto-Start (Windows Service)",
+            Button btnFixFirewall = new Button {
+                Text = "🛡️ Buka Port Firewall",
                 Location = new Point(180, y),
-                Size = new Size(420, 30),
+                Size = new Size(205, 30),
+                BackColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.FromArgb(255, 179, 0),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 8.2F)
+            };
+            btnFixFirewall.FlatAppearance.BorderSize = 0;
+            btnFixFirewall.Click += (s, e) => {
+                string bat = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Fix-Firewall.bat");
+                if (File.Exists(bat)) {
+                    Process.Start(new ProcessStartInfo {
+                        FileName = bat,
+                        UseShellExecute = true,
+                        Verb = "runas"
+                    });
+                } else {
+                    MessageBox.Show("File Fix-Firewall.bat tidak ditemukan!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            };
+            card.Controls.Add(btnFixFirewall);
+
+            Button btnService = new Button {
+                Text = "⚙️ Pasang Windows Service",
+                Location = new Point(395, y),
+                Size = new Size(205, 30),
                 BackColor = Color.FromArgb(40, 40, 40),
                 ForeColor = Color.FromArgb(0, 230, 118),
                 FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 8.5F)
+                Font = new Font("Segoe UI", 8.2F)
             };
             btnService.FlatAppearance.BorderSize = 0;
             btnService.Click += (s, e) => {
@@ -415,13 +446,28 @@ namespace CaddyProxyWindows
 
             // Generate Caddyfile
             string caddyfilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Caddyfile");
-            string caddyConfig = "{\n    admin off\n    auto_https disable_redirects\n}\n\n" +
+            string redirTarget = (listenPort == "443") ? "https://{host}{uri}" : ("https://{host}:" + listenPort + "{uri}");
+
+            string caddyConfig = "{\n" +
+                                 "    admin off\n" +
+                                 "    auto_https disable_redirects\n" +
+                                 "}\n\n" +
+                                 "http://" + domain + " {\n" +
+                                 "    redir " + redirTarget + " permanent\n" +
+                                 "}\n\n" +
                                  domain + ":" + listenPort + " {\n" +
                                  "    tls {\n" +
                                  "        dns duckdns " + token + "\n" +
                                  "        resolvers 8.8.8.8 8.8.4.4\n" +
                                  "    }\n" +
-                                 "    reverse_proxy " + host + ":" + port + "\n" +
+                                 "    log {\n" +
+                                 "        output stdout\n" +
+                                 "        format console\n" +
+                                 "    }\n" +
+                                 "    reverse_proxy " + host + ":" + port + " {\n" +
+                                 "        header_up Host {host}\n" +
+                                 "        header_up X-Real-IP {remote_host}\n" +
+                                 "    }\n" +
                                  "}\n";
             File.WriteAllText(caddyfilePath, caddyConfig);
             AppendLog("Caddyfile dibuat di: " + caddyfilePath);
@@ -451,7 +497,8 @@ namespace CaddyProxyWindows
                 btnToggle.BackColor = Color.FromArgb(244, 67, 54);
                 lblStatus.Text = "Status: Running (HTTPS :" + listenPort + " -> :" + port + ")";
                 lblStatus.ForeColor = Color.FromArgb(76, 175, 80);
-                AppendLog("Caddy aktif! Buka browser: https://" + domain + ":" + listenPort);
+                string urlDisplay = "https://" + domain + (listenPort == "443" ? "" : ":" + listenPort);
+                AppendLog("Caddy aktif! Buka browser: " + urlDisplay);
             }
             catch (Exception ex)
             {

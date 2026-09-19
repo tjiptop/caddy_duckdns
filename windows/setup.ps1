@@ -57,6 +57,9 @@ try {
     Remove-NetFirewallRule -DisplayName "Caddy Backend Port 8090" -ErrorAction SilentlyContinue
     Remove-NetFirewallRule -DisplayName "Caddy HTTPS Port 443" -ErrorAction SilentlyContinue
 
+    # Perbarui aturan Caddy bawaan Windows agar mencakup Private dan Public
+    Set-NetFirewallRule -DisplayName "Caddy" -Profile Any -ErrorAction SilentlyContinue
+
     # Izinkan caddy.exe program secara menyeluruh
     if (Test-Path $caddyExePath) {
         New-NetFirewallRule -DisplayName "Caddy Server Program" `
@@ -68,6 +71,17 @@ try {
             -ErrorAction Stop | Out-Null
         Write-Host "      [OK] Firewall Rule: Program caddy.exe diizinkan penuh (Inbound)" -ForegroundColor Green
     }
+
+    # Izinkan Port 80 (HTTP redirect ke HTTPS)
+    New-NetFirewallRule -DisplayName "Caddy HTTP Port 80" `
+        -Direction Inbound `
+        -LocalPort 80 `
+        -Protocol TCP `
+        -Action Allow `
+        -Profile Any `
+        -Description "Port 80 HTTP Caddy (Redirect ke HTTPS)" `
+        -ErrorAction Stop | Out-Null
+    Write-Host "      [OK] Firewall Rule: Port 80 TCP dibuka (Inbound)" -ForegroundColor Green
 
     # Izinkan Port 8443 (HTTPS default Caddy)
     New-NetFirewallRule -DisplayName "Caddy HTTPS Port 8443" `
