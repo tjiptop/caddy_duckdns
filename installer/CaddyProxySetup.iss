@@ -126,11 +126,35 @@ begin
     Result := DefaultVal;
 end;
 
+function FindConfigFile: String;
+var
+  ExeDir, SrcDir: String;
+begin
+  Result := '';
+  ExeDir := ExtractFilePath(ExpandConstant('{srcexe}'));
+  SrcDir := ExpandConstant('{src}');
+  if (SrcDir <> '') and (SrcDir[Length(SrcDir)] <> '\') then
+    SrcDir := SrcDir + '\';
+
+  if (ExeDir <> '') and FileExists(ExeDir + 'setup_config.json') then
+    Result := ExeDir + 'setup_config.json'
+  else if (ExeDir <> '') and FileExists(ExeDir + 'caddy_setup_config.json') then
+    Result := ExeDir + 'caddy_setup_config.json'
+  else if (ExeDir <> '') and FileExists(ExeDir + 'caddy_proxy_config.json') then
+    Result := ExeDir + 'caddy_proxy_config.json'
+  else if (SrcDir <> '') and FileExists(SrcDir + 'setup_config.json') then
+    Result := SrcDir + 'setup_config.json'
+  else if (SrcDir <> '') and FileExists(SrcDir + 'caddy_setup_config.json') then
+    Result := SrcDir + 'caddy_setup_config.json'
+  else if (SrcDir <> '') and FileExists(SrcDir + 'caddy_proxy_config.json') then
+    Result := SrcDir + 'caddy_proxy_config.json';
+end;
+
 procedure InitializeWizard;
 var
   lbl: TLabel;
   y: Integer;
-  ConfigSrcFile, ConfigJson: String;
+  ConfigSrcFile, ConfigJson, SubTitleText: String;
   ConfigJsonAnsi: AnsiString;
   DefDomain, DefToken, DefHost, DefPort, DefListenPort, DefManualIp: String;
   DefDisableLog: Boolean;
@@ -144,14 +168,10 @@ begin
   DefManualIp := '';
   DefDisableLog := True;
 
-  // Hanya baca file setting jika ada di folder installer ({src})
-  ConfigSrcFile := ExpandConstant('{src}\setup_config.json');
-  if not FileExists(ConfigSrcFile) then
-    ConfigSrcFile := ExpandConstant('{src}\caddy_setup_config.json');
-  if not FileExists(ConfigSrcFile) then
-    ConfigSrcFile := ExpandConstant('{src}\caddy_proxy_config.json');
+  // Cari file setting di samping Setup.exe atau di {src}
+  ConfigSrcFile := FindConfigFile;
 
-  if FileExists(ConfigSrcFile) then
+  if ConfigSrcFile <> '' then
   begin
     if LoadStringFromFile(ConfigSrcFile, ConfigJsonAnsi) then
     begin
@@ -166,9 +186,14 @@ begin
     end;
   end;
 
+  if ConfigSrcFile <> '' then
+    SubTitleText := 'Konfigurasi parameter otomatis dimuat dari: ' + ExtractFileName(ConfigSrcFile)
+  else
+    SubTitleText := 'Tentukan domain, token DuckDNS, port backend, dan opsi Windows Service:';
+
   ConfigPage := CreateCustomPage(wpSelectDir,
     'Pengaturan Parameter Caddy & DuckDNS',
-    'Tentukan domain, token DuckDNS, port backend, dan opsi Windows Service:');
+    SubTitleText);
 
   y := 8;
 
@@ -207,7 +232,7 @@ begin
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
   lbl.ShowAccelChar := False;
-  lbl.Caption := 'Backend Target Host && Backend Target Port:';
+  lbl.Caption := 'Backend Target Host & Backend Target Port:';
   lbl.Left := 0;
   lbl.Top := y;
   edHost := TNewEdit.Create(ConfigPage);
@@ -229,7 +254,7 @@ begin
   lbl := TLabel.Create(ConfigPage);
   lbl.Parent := ConfigPage.Surface;
   lbl.ShowAccelChar := False;
-  lbl.Caption := 'HTTPS Listen Port && Hotspot IP Override (Opsional):';
+  lbl.Caption := 'HTTPS Listen Port & Hotspot IP Override (Opsional):';
   lbl.Left := 0;
   lbl.Top := y;
   edListenPort := TNewEdit.Create(ConfigPage);
