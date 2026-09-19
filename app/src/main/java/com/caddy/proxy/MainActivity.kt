@@ -25,8 +25,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.appcompat.widget.SwitchCompat
 import com.google.android.material.checkbox.MaterialCheckBox
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,7 +58,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSharePortalLink: Button
 
     // Log Switch & Container
-    private lateinit var swShowLogs: MaterialSwitch
+    private lateinit var swShowLogs: SwitchCompat
     private lateinit var layoutLogs: LinearLayout
     private lateinit var btnCopyLog: Button
     private lateinit var btnClearLog: Button
@@ -159,29 +159,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadSavedConfig() {
-        etDomain.setText(prefs.getString("domain", ""))
-        etToken.setText(prefs.getString("token", ""))
-        etBackendHost.setText(prefs.getString("backend_host", "127.0.0.1"))
-        etBackendPort.setText(prefs.getString("backend_port", "8090"))
-        etListenPort.setText(prefs.getString("listen_port", "8443"))
-        etManualIp.setText(prefs.getString("manual_ip", ""))
-        cbDisableLog.isChecked = prefs.getBoolean("disable_log", true)
-        cbEnablePortal.isChecked = prefs.getBoolean("enable_portal", true)
+        try {
+            etDomain.setText(prefs.getString("domain", ""))
+            etToken.setText(prefs.getString("token", ""))
+            etBackendHost.setText(prefs.getString("backend_host", "127.0.0.1"))
+            etBackendPort.setText(prefs.getString("backend_port", "8090"))
+            etListenPort.setText(prefs.getString("listen_port", "8443"))
+            etManualIp.setText(prefs.getString("manual_ip", ""))
+            cbDisableLog.isChecked = prefs.getBoolean("disable_log", true)
+            cbEnablePortal.isChecked = prefs.getBoolean("enable_portal", true)
 
-        val showLogs = prefs.getBoolean("show_logs", false)
-        swShowLogs.isChecked = showLogs
-        layoutLogs.visibility = if (showLogs) View.VISIBLE else View.GONE
+            val showLogs = prefs.getBoolean("show_logs", false)
+            swShowLogs.isChecked = showLogs
+            layoutLogs.visibility = if (showLogs) View.VISIBLE else View.GONE
 
-        updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Aktif" else "Nonaktif")
-        updateCertStatus()
-        updatePortalUrl()
-        manageCertServer()
+            updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Aktif" else "Nonaktif")
+            updateCertStatus()
+            updatePortalUrl()
+            manageCertServer()
 
-        val existingLogs = CaddyService.getLogs()
-        if (existingLogs.isNotBlank()) {
-            logBuffer.setLength(0)
-            logBuffer.append(existingLogs)
-            tvLogs.text = existingLogs
+            val existingLogs = CaddyService.getLogs()
+            if (existingLogs.isNotBlank()) {
+                logBuffer.setLength(0)
+                logBuffer.append(existingLogs)
+                tvLogs.text = existingLogs
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -361,35 +365,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateStats() {
-        // 1. Uptime
-        val isRunning = CaddyService.isRunning
-        val startTime = CaddyService.startTime
-        if (isRunning && startTime > 0L) {
-            val elapsed = (System.currentTimeMillis() - startTime) / 1000
-            val h = elapsed / 3600
-            val m = (elapsed % 3600) / 60
-            val s = elapsed % 60
-            tvUptime.text = String.format("%02d:%02d:%02d", h, m, s)
-        } else {
-            tvUptime.text = "00:00:00"
-        }
+        try {
+            // 1. Uptime
+            val isRunning = CaddyService.isRunning
+            val startTime = CaddyService.startTime
+            if (isRunning && startTime > 0L) {
+                val elapsed = (System.currentTimeMillis() - startTime) / 1000
+                val h = elapsed / 3600
+                val m = (elapsed % 3600) / 60
+                val s = elapsed % 60
+                tvUptime.text = String.format("%02d:%02d:%02d", h, m, s)
+            } else {
+                tvUptime.text = "00:00:00"
+            }
 
-        // 2. RAM Usage
-        val rt = Runtime.getRuntime()
-        val usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
-        tvMemory.text = "$usedMb MB"
+            // 2. RAM Usage
+            val rt = Runtime.getRuntime()
+            val usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
+            tvMemory.text = "$usedMb MB"
 
-        // 3. Mini SSL Status
-        val domain = getCleanDomain()
-        val savedCrt = prefs.getString("saved_cert_$domain", null)
-        val certFile = File(File(filesDir, "certs"), "$domain.crt")
-        val hasCert = (!savedCrt.isNullOrBlank()) || (certFile.exists() && certFile.length() > 0L)
-        if (hasCert) {
-            tvCertStatusMini.text = "Let's Encrypt"
-            tvCertStatusMini.setTextColor(Color.parseColor("#4CAF50"))
-        } else {
-            tvCertStatusMini.text = "Belum Ada"
-            tvCertStatusMini.setTextColor(Color.parseColor("#FFB300"))
+            // 3. Mini SSL Status
+            val domain = getCleanDomain()
+            val savedCrt = if (domain.isNotBlank()) prefs.getString("saved_cert_$domain", null) else null
+            val certFile = if (domain.isNotBlank()) File(File(filesDir, "certs"), "$domain.crt") else null
+            val hasCert = (!savedCrt.isNullOrBlank()) || (certFile != null && certFile.exists() && certFile.length() > 0L)
+            if (hasCert) {
+                tvCertStatusMini.text = "Let's Encrypt"
+                tvCertStatusMini.setTextColor(Color.parseColor("#4CAF50"))
+            } else {
+                tvCertStatusMini.text = "Belum Ada"
+                tvCertStatusMini.setTextColor(Color.parseColor("#FFB300"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
