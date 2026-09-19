@@ -14,12 +14,12 @@
     <string name="label_manual_ip">Hotspot IP Override (Opsional)</string>
     <string name="hint_manual_ip">Kosongkan untuk auto-detect (192.168.43.1)</string>
     <string name="label_disable_log">Matikan Log Akses (Direkomendasikan)</string>
-    <string name="btn_save">Simpan Pengaturan</string>
-    <string name="btn_start">Start Caddy Proxy</string>
-    <string name="btn_stop">Stop Proxy</string>
-    <string name="status_stopped">Status: Stopped</string>
-    <string name="status_running">Status: Running (HTTPS active)</string>
-    <string name="status_starting">Status: Starting Caddy...</string>
+    <string name="btn_save">💾 Simpan Pengaturan</string>
+    <string name="btn_start">▶️ AKTIFKAN PROXY</string>
+    <string name="btn_stop">⏹️ MATIKAN PROXY</string>
+    <string name="status_stopped">Status: Nonaktif (Berhenti)</string>
+    <string name="status_running">Status: Aktif (HTTPS berjalan)</string>
+    <string name="status_starting">Status: Menyalakan Caddy...</string>
     <string name="hotspot_ip_label">Detected Hotspot/WLAN IP:</string>
     <string name="saved_toast">Pengaturan berhasil disimpan!</string>
     <string name="btn_copy_log">📋 Salin Log</string>
@@ -32,4 +32,12 @@
     <string name="btn_copy_link">📋 Salin Link</string>
     <string name="btn_share_link">↗️ Bagikan Link</string>
     <string name="label_enable_portal">Aktifkan Server Portal Unduh (Port 8080)</string>
+    <string name="title_settings_accordion">⚙️ Pengaturan Parameter</string>
+    <string name="label_show_logs">📜 Tampilkan Log Aktivitas</string>
+    <string name="title_stats">📊 Statistik Ringan</string>
+    <string name="label_uptime">Uptime</string>
+    <string name="label_memory">RAM</string>
+    <string name="label_ssl">SSL</string>
+    <string name="expand_settings">[▼ Tampilkan]</string>
+    <string name="collapse_settings">[▲ Sembunyikan]</string>
 </resources>

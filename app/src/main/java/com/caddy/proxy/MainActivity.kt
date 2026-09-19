@@ -14,9 +14,11 @@ import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,9 +26,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -36,6 +42,32 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
 
     private lateinit var tvDetectedIp: TextView
+    private lateinit var tvStatus: TextView
+    private lateinit var tvStatusDetails: TextView
+    private lateinit var btnToggle: Button
+
+    // Lightweight Stats
+    private lateinit var tvUptime: TextView
+    private lateinit var tvMemory: TextView
+    private lateinit var tvCertStatusMini: TextView
+    private var statsJob: Job? = null
+
+    // Client Download Portal Views
+    private lateinit var tvPortalUrl: TextView
+    private lateinit var btnCopyPortalLink: Button
+    private lateinit var btnSharePortalLink: Button
+
+    // Log Switch & Container
+    private lateinit var swShowLogs: MaterialSwitch
+    private lateinit var layoutLogs: LinearLayout
+    private lateinit var btnCopyLog: Button
+    private lateinit var btnClearLog: Button
+    private lateinit var tvLogs: TextView
+
+    // Accordion & Settings Input Fields
+    private lateinit var btnToggleSettings: LinearLayout
+    private lateinit var tvSettingsExpandIndicator: TextView
+    private lateinit var layoutSettings: LinearLayout
     private lateinit var etDomain: TextInputEditText
     private lateinit var etToken: TextInputEditText
     private lateinit var etBackendHost: TextInputEditText
@@ -43,23 +75,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var etListenPort: TextInputEditText
     private lateinit var etManualIp: AutoCompleteTextView
     private lateinit var cbDisableLog: MaterialCheckBox
+    private lateinit var cbEnablePortal: MaterialCheckBox
     private lateinit var btnSave: Button
-    private lateinit var btnToggle: Button
-    private lateinit var tvStatus: TextView
-    private lateinit var btnCopyLog: Button
-    private lateinit var btnClearLog: Button
-    private lateinit var tvLogs: TextView
 
-    // SSL Certificate Management Views
+    // SSL Certificate Management Views inside settings
     private lateinit var tvCertStatus: TextView
     private lateinit var btnPasteCert: Button
     private lateinit var btnImportCert: Button
-
-    // Client Download Portal Views
-    private lateinit var tvPortalUrl: TextView
-    private lateinit var btnCopyPortalLink: Button
-    private lateinit var btnSharePortalLink: Button
-    private lateinit var cbEnablePortal: MaterialCheckBox
 
     private val logBuffer = StringBuilder()
     private var detectedIps: List<IpInfo> = emptyList()
@@ -85,10 +107,41 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         updateCertStatus()
         manageCertServer()
+        startStatsLoop()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopStatsLoop()
     }
 
     private fun initViews() {
         tvDetectedIp = findViewById(R.id.tvDetectedIp)
+        tvStatus = findViewById(R.id.tvStatus)
+        tvStatusDetails = findViewById(R.id.tvStatusDetails)
+        btnToggle = findViewById(R.id.btnToggle)
+
+        // Stats
+        tvUptime = findViewById(R.id.tvUptime)
+        tvMemory = findViewById(R.id.tvMemory)
+        tvCertStatusMini = findViewById(R.id.tvCertStatusMini)
+
+        // Portal views
+        tvPortalUrl = findViewById(R.id.tvPortalUrl)
+        btnCopyPortalLink = findViewById(R.id.btnCopyPortalLink)
+        btnSharePortalLink = findViewById(R.id.btnSharePortalLink)
+
+        // Log views
+        swShowLogs = findViewById(R.id.swShowLogs)
+        layoutLogs = findViewById(R.id.layoutLogs)
+        btnCopyLog = findViewById(R.id.btnCopyLog)
+        btnClearLog = findViewById(R.id.btnClearLog)
+        tvLogs = findViewById(R.id.tvLogs)
+
+        // Settings Accordion & Inputs
+        btnToggleSettings = findViewById(R.id.btnToggleSettings)
+        tvSettingsExpandIndicator = findViewById(R.id.tvSettingsExpandIndicator)
+        layoutSettings = findViewById(R.id.layoutSettings)
         etDomain = findViewById(R.id.etDomain)
         etToken = findViewById(R.id.etToken)
         etBackendHost = findViewById(R.id.etBackendHost)
@@ -96,23 +149,13 @@ class MainActivity : AppCompatActivity() {
         etListenPort = findViewById(R.id.etListenPort)
         etManualIp = findViewById(R.id.etManualIp)
         cbDisableLog = findViewById(R.id.cbDisableLog)
+        cbEnablePortal = findViewById(R.id.cbEnablePortal)
         btnSave = findViewById(R.id.btnSave)
-        btnToggle = findViewById(R.id.btnToggle)
-        tvStatus = findViewById(R.id.tvStatus)
-        btnCopyLog = findViewById(R.id.btnCopyLog)
-        btnClearLog = findViewById(R.id.btnClearLog)
-        tvLogs = findViewById(R.id.tvLogs)
 
         // SSL views
         tvCertStatus = findViewById(R.id.tvCertStatus)
         btnPasteCert = findViewById(R.id.btnPasteCert)
         btnImportCert = findViewById(R.id.btnImportCert)
-
-        // Portal views
-        tvPortalUrl = findViewById(R.id.tvPortalUrl)
-        btnCopyPortalLink = findViewById(R.id.btnCopyPortalLink)
-        btnSharePortalLink = findViewById(R.id.btnSharePortalLink)
-        cbEnablePortal = findViewById(R.id.cbEnablePortal)
     }
 
     private fun loadSavedConfig() {
@@ -125,7 +168,11 @@ class MainActivity : AppCompatActivity() {
         cbDisableLog.isChecked = prefs.getBoolean("disable_log", true)
         cbEnablePortal.isChecked = prefs.getBoolean("enable_portal", true)
 
-        updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Running" else "Stopped")
+        val showLogs = prefs.getBoolean("show_logs", false)
+        swShowLogs.isChecked = showLogs
+        layoutLogs.visibility = if (showLogs) View.VISIBLE else View.GONE
+
+        updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Aktif" else "Nonaktif")
         updateCertStatus()
         updatePortalUrl()
         manageCertServer()
@@ -149,6 +196,8 @@ class MainActivity : AppCompatActivity() {
             .putBoolean("disable_log", cbDisableLog.isChecked)
             .putBoolean("enable_portal", cbEnablePortal.isChecked)
             .apply()
+
+        updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Aktif" else "Nonaktif")
     }
 
     private fun detectLocalIp() {
@@ -192,6 +241,23 @@ class MainActivity : AppCompatActivity() {
         tvDetectedIp.setOnClickListener {
             detectLocalIp()
             Toast.makeText(this, "Memindai ulang IP adapter jaringan...", Toast.LENGTH_SHORT).show()
+        }
+
+        // Accordion Toggle Settings
+        btnToggleSettings.setOnClickListener {
+            if (layoutSettings.visibility == View.VISIBLE) {
+                layoutSettings.visibility = View.GONE
+                tvSettingsExpandIndicator.text = getString(R.string.expand_settings)
+            } else {
+                layoutSettings.visibility = View.VISIBLE
+                tvSettingsExpandIndicator.text = getString(R.string.collapse_settings)
+            }
+        }
+
+        // Show/Hide Logs Switch
+        swShowLogs.setOnCheckedChangeListener { _, isChecked ->
+            layoutLogs.visibility = if (isChecked) View.VISIBLE else View.GONE
+            prefs.edit().putBoolean("show_logs", isChecked).apply()
         }
 
         btnCopyLog.setOnClickListener {
@@ -255,6 +321,7 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 updateCertStatus()
+                updateUiState(CaddyService.isRunning, if (CaddyService.isRunning) "Aktif" else "Nonaktif")
             }
         })
 
@@ -275,6 +342,54 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 updateUiState(running, text)
             }
+        }
+    }
+
+    private fun startStatsLoop() {
+        statsJob?.cancel()
+        statsJob = CoroutineScope(Dispatchers.Main).launch {
+            while (isActive) {
+                updateStats()
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopStatsLoop() {
+        statsJob?.cancel()
+        statsJob = null
+    }
+
+    private fun updateStats() {
+        // 1. Uptime
+        val isRunning = CaddyService.isRunning
+        val startTime = CaddyService.startTime
+        if (isRunning && startTime > 0L) {
+            val elapsed = (System.currentTimeMillis() - startTime) / 1000
+            val h = elapsed / 3600
+            val m = (elapsed % 3600) / 60
+            val s = elapsed % 60
+            tvUptime.text = String.format("%02d:%02d:%02d", h, m, s)
+        } else {
+            tvUptime.text = "00:00:00"
+        }
+
+        // 2. RAM Usage
+        val rt = Runtime.getRuntime()
+        val usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
+        tvMemory.text = "$usedMb MB"
+
+        // 3. Mini SSL Status
+        val domain = getCleanDomain()
+        val savedCrt = prefs.getString("saved_cert_$domain", null)
+        val certFile = File(File(filesDir, "certs"), "$domain.crt")
+        val hasCert = (!savedCrt.isNullOrBlank()) || (certFile.exists() && certFile.length() > 0L)
+        if (hasCert) {
+            tvCertStatusMini.text = "Let's Encrypt"
+            tvCertStatusMini.setTextColor(Color.parseColor("#4CAF50"))
+        } else {
+            tvCertStatusMini.text = "Belum Ada"
+            tvCertStatusMini.setTextColor(Color.parseColor("#FFB300"))
         }
     }
 
@@ -438,7 +553,10 @@ class MainActivity : AppCompatActivity() {
         val manualIp = etManualIp.text?.toString()?.trim() ?: ""
 
         if (domain.isEmpty() || token.isEmpty()) {
-            Toast.makeText(this, "Domain and DuckDNS Token are required!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Domain dan DuckDNS Token wajib diisi pada Pengaturan!", Toast.LENGTH_LONG).show()
+            // Automatically open settings if empty
+            layoutSettings.visibility = View.VISIBLE
+            tvSettingsExpandIndicator.text = getString(R.string.collapse_settings)
             return
         }
 
@@ -470,16 +588,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUiState(running: Boolean, statusText: String) {
+        val domain = getCleanDomain().ifBlank { "absenku.duckdns.org" }
+        val listenPort = etListenPort.text?.toString()?.trim()?.ifBlank { "8443" } ?: "8443"
+        val backendHost = etBackendHost.text?.toString()?.trim()?.ifBlank { "127.0.0.1" } ?: "127.0.0.1"
+        val backendPort = etBackendPort.text?.toString()?.trim()?.ifBlank { "8090" } ?: "8090"
+
+        tvStatusDetails.text = "https://$domain:$listenPort → $backendHost:$backendPort"
+
         if (running) {
             btnToggle.text = getString(R.string.btn_stop)
-            btnToggle.setBackgroundColor(Color.parseColor("#F44336"))
-            tvStatus.text = "Status: $statusText"
-            tvStatus.setTextColor(Color.parseColor("#4CAF50"))
+            btnToggle.setBackgroundColor(Color.parseColor("#EF4444"))
+            tvStatus.text = "🟢 Status: $statusText"
+            tvStatus.setTextColor(Color.parseColor("#22C55E"))
         } else {
             btnToggle.text = getString(R.string.btn_start)
             btnToggle.setBackgroundColor(Color.parseColor("#1E88E5"))
-            tvStatus.text = "Status: $statusText"
-            tvStatus.setTextColor(Color.parseColor("#F44336"))
+            tvStatus.text = "⚪ Status: $statusText"
+            tvStatus.setTextColor(Color.parseColor("#9CA3AF"))
         }
     }
 

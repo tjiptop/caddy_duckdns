@@ -44,6 +44,9 @@ class CaddyService : Service() {
         var isRunning = false
             private set
 
+        var startTime: Long = 0L
+            private set
+
         val fullLogBuffer = StringBuilder()
 
         fun getLogs(): String = synchronized(fullLogBuffer) {
@@ -90,6 +93,7 @@ class CaddyService : Service() {
 
         when (action) {
             ACTION_START -> {
+                startTime = System.currentTimeMillis()
                 val domain = intent.getStringExtra(EXTRA_DOMAIN) ?: ""
                 val token = intent.getStringExtra(EXTRA_TOKEN) ?: ""
                 val backendHost = intent.getStringExtra(EXTRA_BACKEND_HOST)?.ifBlank { "127.0.0.1" } ?: "127.0.0.1"
@@ -103,6 +107,7 @@ class CaddyService : Service() {
                 startCaddy(domain, token, backendHost, backendPort, listenPort, manualIp, disableLog)
             }
             ACTION_STOP -> {
+                startTime = 0L
                 stopCaddy()
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
