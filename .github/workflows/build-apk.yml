@@ -56,7 +56,7 @@ jobs:
           mkdir -p app/src/main/jniLibs/armeabi-v7a
 
           CLANG_ARM64=$(ls "$TOOLCHAIN"/aarch64-linux-android*24-clang 2>/dev/null || ls "$TOOLCHAIN"/aarch64-linux-android*-clang | head -n 1)
-          CLANG_ARM32=$(ls "$TOOLCHAIN"/armv7a-linux-androideabi*24-clang 2>/dev/null || ls "$TOOLCHAIN"/armv7a-linux-androideabi*-clang | head -n 1)
+          CLANG_ARM32=$(ls "$TOOLCHAIN"/armv7a-linux-androideabi*21-clang 2>/dev/null || ls "$TOOLCHAIN"/armv7a-linux-androideabi*-clang | head -n 1)
           echo "Selected arm64 clang: $CLANG_ARM64"
           echo "Selected arm32 clang: $CLANG_ARM32"
 
@@ -67,8 +67,9 @@ jobs:
             --with github.com/caddy-dns/duckdns \
             --output app/src/main/jniLibs/arm64-v8a/libcaddy.so
 
-          echo "=== Compiling Caddy with CGO for armeabi-v7a ==="
+          echo "=== Compiling Caddy with CGO for armeabi-v7a (Android 5.0+ API 21 compatible) ==="
           CC="$CLANG_ARM32" \
+          CGO_LDFLAGS="-Wl,--hash-style=both" \
           CGO_ENABLED=1 GOOS=android GOARCH=arm \
           xcaddy build \
             --with github.com/caddy-dns/duckdns \
@@ -88,19 +89,25 @@ jobs:
       - name: Organize and Rename Split APKs
         run: |
           mkdir -p release-apks
+          mkdir -p apks
           for f in app/build/outputs/apk/debug/*.apk; do
             filename=$(basename "$f")
             if [[ "$filename" == *"arm64-v8a"* ]]; then
               cp "$f" "release-apks/CaddyProxy-Android-arm64-v8a.apk"
               cp "$f" "release-apks/app-debug.apk"
+              cp "$f" "apks/CaddyProxy-Android-arm64-v8a.apk"
+              cp "$f" "apks/CaddyProxy-Android.apk"
             elif [[ "$filename" == *"armeabi-v7a"* ]]; then
               cp "$f" "release-apks/CaddyProxy-Android-armeabi-v7a.apk"
+              cp "$f" "apks/CaddyProxy-Android-armeabi-v7a.apk"
             elif [[ "$filename" == *"universal"* ]]; then
               cp "$f" "release-apks/CaddyProxy-Android-Universal.apk"
+              cp "$f" "apks/CaddyProxy-Android-Universal.apk"
             fi
           done
           echo "=== Generated APKs ==="
           ls -lh release-apks/
+          ls -lh apks/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

@@ -16,3 +16,5 @@ windows/*.log
 *.crt
 *.key
 windows/portal/cert.crt
+__pycache__/
+apk_output/

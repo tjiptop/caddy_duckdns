@@ -66,3 +66,31 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
+
+tasks.register("copyApksToSpecialFolder") {
+    group = "build"
+    description = "Copies generated APKs to the dedicated apks/ folder"
+    doLast {
+        val destFolder = rootProject.file("apks")
+        if (!destFolder.exists()) {
+            destFolder.mkdirs()
+        }
+        val buildOutputs = file("build/outputs/apk")
+        if (buildOutputs.exists()) {
+            buildOutputs.walkTopDown().filter { it.extension == "apk" }.forEach { apk ->
+                val targetName = when {
+                    apk.name.contains("arm64-v8a") -> "CaddyProxy-Android-arm64-v8a.apk"
+                    apk.name.contains("armeabi-v7a") -> "CaddyProxy-Android-armeabi-v7a.apk"
+                    apk.name.contains("universal") -> "CaddyProxy-Android-Universal.apk"
+                    else -> apk.name
+                }
+                apk.copyTo(File(destFolder, targetName), overwrite = true)
+                println("Output APK disalin ke folder khusus: apks/$targetName (${apk.length() / 1024 / 1024} MB)")
+            }
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("assemble") }.configureEach {
+    finalizedBy("copyApksToSpecialFolder")
+}

@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:background="@color/surface"
+    android:padding="12dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,22 +16,26 @@
             android:layout_height="wrap_content"
             android:text="Tempel Sertifikat SSL (.crt &amp; .key)"
             android:textColor="@color/text_primary"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Tempel teks sertifikat (.crt) dan private key (.key) di bawah ini. Data akan disimpan secara permanen di perangkat."
+            android:layout_marginTop="2dp"
+            android:text="Tempel teks sertifikat (.crt) dan private key (.key) di bawah ini. Tersimpan permanen di perangkat."
             android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
+            android:textSize="11sp" />
 
         <!-- Domain Confirm -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="10dp"
+            app:boxBackgroundColor="@color/input_background"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/accent"
+            android:textColorHint="@color/text_hint"
             android:hint="Nama Domain (e.g. absenku.duckdns.org)">
 
             <com.google.android.material.textfield.TextInputEditText
@@ -38,7 +43,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="textUri"
-                android:textColor="@color/text_primary" />
+                android:textColor="@color/text_primary"
+                android:textSize="13sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Certificate CRT -->
@@ -46,18 +52,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Sertifikat SSL (.crt) - Termasuk -----BEGIN CERTIFICATE-----">
+            app:boxBackgroundColor="@color/input_background"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/accent"
+            android:textColorHint="@color/text_hint"
+            android:hint="Sertifikat SSL (.crt) - BEGIN CERTIFICATE">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/dialogCrt"
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
+                android:layout_height="90dp"
                 android:fontFamily="monospace"
                 android:gravity="top|start"
                 android:inputType="textMultiLine"
                 android:scrollbars="vertical"
                 android:textColor="@color/text_primary"
-                android:textSize="11sp" />
+                android:textSize="10.5sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <!-- Private Key KEY -->
@@ -65,18 +75,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="Private Key (.key) - Termasuk -----BEGIN PRIVATE KEY-----">
+            app:boxBackgroundColor="@color/input_background"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/accent"
+            android:textColorHint="@color/text_hint"
+            android:hint="Private Key (.key) - BEGIN PRIVATE KEY">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/dialogKey"
                 android:layout_width="match_parent"
-                android:layout_height="100dp"
+                android:layout_height="75dp"
                 android:fontFamily="monospace"
                 android:gravity="top|start"
                 android:inputType="textMultiLine"
                 android:scrollbars="vertical"
                 android:textColor="@color/text_primary"
-                android:textSize="11sp" />
+                android:textSize="10.5sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>

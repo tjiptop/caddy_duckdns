@@ -4,26 +4,29 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:isScrollContainer="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="10dp">
 
         <!-- HEADER: Title & IP Deteksi -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Caddy HTTPS Proxy"
                 android:textColor="@color/text_primary"
-                android:textSize="22sp"
+                android:textSize="19sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -33,23 +36,23 @@
                 android:layout_marginTop="2dp"
                 android:text="IP Hotspot/WLAN: Menunggu..."
                 android:textColor="@color/accent"
-                android:textSize="12sp" />
+                android:textSize="11.5sp" />
         </LinearLayout>
 
-        <!-- KARTU 1: KONTROL UTAMA & STATUS SERVER (MINIMALIS) -->
+        <!-- KARTU 1: KONTROL UTAMA & STATUS SERVER -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="3dp">
+            app:cardCornerRadius="10dp"
+            app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="12dp">
 
                 <TextView
                     android:id="@+id/tvStatus"
@@ -57,28 +60,30 @@
                     android:layout_height="wrap_content"
                     android:text="@string/status_stopped"
                     android:textColor="@color/status_red"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvStatusDetails"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="3dp"
+                    android:ellipsize="middle"
+                    android:maxLines="2"
                     android:text="https://(domain):8443 → 127.0.0.1:8090"
                     android:textColor="@color/text_secondary"
-                    android:textSize="13sp" />
+                    android:textSize="12sp" />
 
                 <!-- Tombol Utama Enable/Disable -->
                 <Button
                     android:id="@+id/btnToggle"
                     android:layout_width="match_parent"
-                    android:layout_height="52dp"
-                    android:layout_marginTop="14dp"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="12dp"
                     android:backgroundTint="@color/primary"
                     android:text="@string/btn_start"
                     android:textColor="#FFFFFF"
-                    android:textSize="15sp"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     app:cornerRadius="8dp" />
 
@@ -89,16 +94,19 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="10dp"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:padding="12dp">
+                android:paddingStart="4dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="4dp"
+                android:paddingBottom="8dp">
 
                 <!-- Uptime -->
                 <LinearLayout
@@ -113,29 +121,29 @@
                         android:layout_height="wrap_content"
                         android:text="⏱️ Uptime"
                         android:textColor="@color/text_secondary"
-                        android:textSize="11sp" />
+                        android:textSize="10sp" />
 
                     <TextView
                         android:id="@+id/tvUptime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="1dp"
                         android:text="00:00:00"
                         android:textColor="#38BDF8"
-                        android:textSize="13sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="1dp"
                     android:layout_height="match_parent"
-                    android:background="#33FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- Memory / RAM -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_weight="0.9"
                     android:gravity="center"
                     android:orientation="vertical">
 
@@ -144,29 +152,29 @@
                         android:layout_height="wrap_content"
                         android:text="💾 RAM"
                         android:textColor="@color/text_secondary"
-                        android:textSize="11sp" />
+                        android:textSize="10sp" />
 
                     <TextView
                         android:id="@+id/tvMemory"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="1dp"
                         android:text="0 MB"
                         android:textColor="@color/accent"
-                        android:textSize="13sp"
+                        android:textSize="12sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
                 <View
                     android:layout_width="1dp"
                     android:layout_height="match_parent"
-                    android:background="#33FFFFFF" />
+                    android:background="#22FFFFFF" />
 
                 <!-- SSL Quick Status -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1.2"
+                    android:layout_weight="1.1"
                     android:gravity="center"
                     android:orientation="vertical">
 
@@ -175,18 +183,18 @@
                         android:layout_height="wrap_content"
                         android:text="🔒 SSL Cert"
                         android:textColor="@color/text_secondary"
-                        android:textSize="11sp" />
+                        android:textSize="10sp" />
 
                     <TextView
                         android:id="@+id/tvCertStatusMini"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
+                        android:layout_marginTop="1dp"
                         android:ellipsize="end"
                         android:maxLines="1"
                         android:text="Let's Encrypt"
                         android:textColor="#FFD54F"
-                        android:textSize="12sp"
+                        android:textSize="11.5sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
@@ -197,44 +205,46 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="10dp"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="14dp">
+                android:padding="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/title_portal"
                     android:textColor="@color/text_primary"
-                    android:textSize="14sp"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Buka link ini dari browser HP/Laptop klien saat offline:"
+                    android:text="Buka link ini dari browser klien saat offline:"
                     android:textColor="@color/text_secondary"
-                    android:textSize="11sp" />
+                    android:textSize="10.5sp" />
 
                 <TextView
                     android:id="@+id/tvPortalUrl"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:background="#1E293B"
+                    android:layout_marginTop="5dp"
+                    android:background="@color/input_background"
+                    android:ellipsize="end"
+                    android:maxLines="1"
                     android:padding="8dp"
                     android:text="http://127.0.0.1:8080/"
                     android:textColor="#38BDF8"
                     android:textIsSelectable="true"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
 
                 <LinearLayout
@@ -247,23 +257,31 @@
                         android:id="@+id/btnCopyPortalLink"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
+                        android:layout_marginEnd="3dp"
                         android:layout_weight="1"
-                        android:layout_marginEnd="4dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/btn_copy_link"
                         android:textColor="@color/accent"
-                        android:textSize="11sp" />
+                        android:textSize="11sp"
+                        app:strokeColor="@color/border_color" />
 
                     <Button
                         android:id="@+id/btnSharePortalLink"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                         android:layout_width="0dp"
-                        android:layout_height="40dp"
+                        android:layout_height="38dp"
+                        android:layout_marginStart="3dp"
                         android:layout_weight="1"
-                        android:layout_marginStart="4dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="4dp"
                         android:text="@string/btn_share_link"
                         android:textColor="@color/accent"
-                        android:textSize="11sp" />
+                        android:textSize="11sp"
+                        app:strokeColor="@color/border_color" />
                 </LinearLayout>
 
             </LinearLayout>
@@ -273,16 +291,16 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="10dp"
             app:cardElevation="2dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="12dp">
+                android:padding="10dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -296,7 +314,7 @@
                         android:layout_weight="1"
                         android:text="@string/label_show_logs"
                         android:textColor="@color/text_primary"
-                        android:textSize="13sp"
+                        android:textSize="12.5sp"
                         android:textStyle="bold" />
 
                     <androidx.appcompat.widget.SwitchCompat
@@ -311,7 +329,7 @@
                     android:id="@+id/layoutLogs"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
                     android:orientation="vertical"
                     android:visibility="gone">
 
@@ -325,29 +343,32 @@
                             android:id="@+id/btnCopyLog"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
+                            android:layout_height="32dp"
+                            android:minHeight="0dp"
                             android:paddingLeft="8dp"
                             android:paddingRight="8dp"
                             android:text="@string/btn_copy_log"
                             android:textColor="@color/accent"
-                            android:textSize="10sp" />
+                            android:textSize="10sp"
+                            app:strokeColor="@color/border_color" />
 
                         <Button
                             android:id="@+id/btnClearLog"
                             style="@style/Widget.MaterialComponents.Button.TextButton"
                             android:layout_width="wrap_content"
-                            android:layout_height="34dp"
+                            android:layout_height="32dp"
                             android:layout_marginStart="4dp"
+                            android:minHeight="0dp"
                             android:paddingLeft="8dp"
                             android:paddingRight="8dp"
                             android:text="@string/btn_clear_log"
-                            android:textColor="#F44336"
+                            android:textColor="#EF4444"
                             android:textSize="10sp" />
                     </LinearLayout>
 
                     <HorizontalScrollView
                         android:layout_width="match_parent"
-                        android:layout_height="200dp"
+                        android:layout_height="150dp"
                         android:layout_marginTop="4dp"
                         android:background="#000000"
                         android:padding="6dp">
@@ -360,7 +381,7 @@
                             android:text="Log output...\n"
                             android:textColor="#00FF66"
                             android:textIsSelectable="true"
-                            android:textSize="10sp" />
+                            android:textSize="9.5sp" />
                     </HorizontalScrollView>
                 </LinearLayout>
 
@@ -371,10 +392,10 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="14dp"
             app:cardBackgroundColor="@color/surface"
-            app:cardCornerRadius="12dp"
+            app:cardCornerRadius="10dp"
             app:cardElevation="2dp">
 
             <LinearLayout
@@ -392,7 +413,7 @@
                     android:focusable="true"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="14dp">
+                    android:padding="12dp">
 
                     <TextView
                         android:layout_width="0dp"
@@ -400,7 +421,7 @@
                         android:layout_weight="1"
                         android:text="@string/title_settings_accordion"
                         android:textColor="@color/text_primary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -409,7 +430,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/expand_settings"
                         android:textColor="@color/primary"
-                        android:textSize="12sp"
+                        android:textSize="11.5sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
@@ -419,15 +440,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingLeft="14dp"
-                    android:paddingRight="14dp"
-                    android:paddingBottom="14dp"
+                    android:paddingLeft="12dp"
+                    android:paddingRight="12dp"
+                    android:paddingBottom="12dp"
                     android:visibility="gone">
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:layout_marginBottom="12dp"
+                        android:layout_marginBottom="10dp"
                         android:background="#22FFFFFF" />
 
                     <!-- Domain -->
@@ -435,14 +456,18 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="@string/label_domain"
-                        app:boxStrokeColor="@color/primary">
+                        android:textColorHint="@color/text_hint"
+                        app:boxBackgroundColor="@color/input_background"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/accent">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etDomain"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textUri"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Token -->
@@ -451,18 +476,44 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:hint="@string/label_token"
+                        android:textColorHint="@color/text_hint"
+                        app:boxBackgroundColor="@color/input_background"
                         app:boxStrokeColor="@color/primary"
-                        app:passwordToggleEnabled="true">
+                        app:hintTextColor="@color/accent"
+                        app:passwordToggleEnabled="true"
+                        app:passwordToggleTint="@color/accent">
 
                         <com.google.android.material.textfield.TextInputEditText
                             android:id="@+id/etToken"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textPassword"
-                            android:textColor="@color/text_primary" />
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Backend Host & Port -->
+                    <!-- Backend Host (Full Width for optimal space) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="@string/label_backend_host"
+                        android:textColorHint="@color/text_hint"
+                        app:boxBackgroundColor="@color/input_background"
+                        app:boxStrokeColor="@color/primary"
+                        app:hintTextColor="@color/accent">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etBackendHost"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:text="127.0.0.1"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Backend Port & HTTPS Listen Port (Side-by-side, equal width) -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -472,25 +523,13 @@
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1.2"
                             android:layout_marginEnd="4dp"
-                            android:hint="@string/label_backend_host">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/etBackendHost"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:text="127.0.0.1"
-                                android:textColor="@color/text_primary" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="0.8"
-                            android:layout_marginStart="4dp"
-                            android:hint="@string/label_backend_port">
+                            android:layout_weight="1"
+                            android:hint="@string/label_backend_port"
+                            android:textColorHint="@color/text_hint"
+                            app:boxBackgroundColor="@color/input_background"
+                            app:boxStrokeColor="@color/primary"
+                            app:hintTextColor="@color/accent">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etBackendPort"
@@ -498,23 +537,20 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:text="8090"
-                                android:textColor="@color/text_primary" />
+                                android:textColor="@color/text_primary"
+                                android:textSize="13sp" />
                         </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <!-- Listen Port & Hotspot IP Override -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:orientation="horizontal">
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_weight="0.8"
-                            android:layout_marginEnd="4dp"
-                            android:hint="@string/label_listen_port">
+                            android:layout_marginStart="4dp"
+                            android:layout_weight="1"
+                            android:hint="@string/label_listen_port"
+                            android:textColorHint="@color/text_hint"
+                            app:boxBackgroundColor="@color/input_background"
+                            app:boxStrokeColor="@color/primary"
+                            app:hintTextColor="@color/accent">
 
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/etListenPort"
@@ -522,26 +558,38 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="number"
                                 android:text="8443"
-                                android:textColor="@color/text_primary" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:id="@+id/tilManualIp"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1.2"
-                            android:layout_marginStart="4dp"
-                            android:hint="@string/label_manual_ip">
-
-                            <AutoCompleteTextView
-                                android:id="@+id/etManualIp"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="text"
-                                android:textColor="@color/text_primary" />
+                                android:textColor="@color/text_primary"
+                                android:textSize="13sp" />
                         </com.google.android.material.textfield.TextInputLayout>
                     </LinearLayout>
+
+                    <!-- Hotspot IP Override (Full Width: plenty of room for IP details & dropdown arrow) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilManualIp"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.FilledBox.ExposedDropdownMenu"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="@string/label_manual_ip"
+                        android:textColorHint="@color/text_hint"
+                        app:boxBackgroundColor="@color/input_background"
+                        app:boxStrokeColor="@color/primary"
+                        app:endIconTint="@color/accent"
+                        app:hintTextColor="@color/accent">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/etManualIp"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:inputType="text"
+                            android:paddingStart="12dp"
+                            android:paddingEnd="12dp"
+                            android:popupBackground="@drawable/bg_dropdown_popup"
+                            android:singleLine="true"
+                            android:textColor="@color/text_primary"
+                            android:textSize="13sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/cbDisableLog"
@@ -549,37 +597,43 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:checked="true"
+                        android:minHeight="36dp"
                         android:text="@string/label_disable_log"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="11.5sp"
+                        app:buttonTint="@color/accent" />
 
                     <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/cbEnablePortal"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:checked="true"
+                        android:minHeight="36dp"
                         android:text="@string/label_enable_portal"
                         android:textColor="@color/text_primary"
-                        android:textSize="12sp" />
+                        android:textSize="11.5sp"
+                        app:buttonTint="@color/accent" />
 
                     <!-- Tombol Simpan Pengaturan -->
                     <Button
                         android:id="@+id/btnSave"
                         android:layout_width="match_parent"
-                        android:layout_height="44dp"
+                        android:layout_height="42dp"
                         android:layout_marginTop="8dp"
                         android:backgroundTint="#374151"
                         android:text="@string/btn_save"
-                        android:textColor="#FFFFFF" />
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        app:cornerRadius="8dp" />
 
                     <!-- Manajemen Sertifikat SSL -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:text="@string/title_ssl_cert"
                         android:textColor="@color/text_primary"
-                        android:textSize="13sp"
+                        android:textSize="12.5sp"
                         android:textStyle="bold" />
 
                     <TextView
@@ -589,7 +643,7 @@
                         android:layout_marginTop="2dp"
                         android:text="Pengecekan sertifikat..."
                         android:textColor="#FFB300"
-                        android:textSize="11sp" />
+                        android:textSize="10.5sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -601,23 +655,31 @@
                             android:id="@+id/btnPasteCert"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="38dp"
+                            android:layout_height="36dp"
+                            android:layout_marginEnd="3dp"
                             android:layout_weight="1"
-                            android:layout_marginEnd="4dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             android:text="@string/btn_paste_cert"
                             android:textColor="@color/accent"
-                            android:textSize="10sp" />
+                            android:textSize="10.5sp"
+                            app:strokeColor="@color/border_color" />
 
                         <Button
                             android:id="@+id/btnImportCert"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
-                            android:layout_height="38dp"
+                            android:layout_height="36dp"
+                            android:layout_marginStart="3dp"
                             android:layout_weight="1"
-                            android:layout_marginStart="4dp"
+                            android:minHeight="0dp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
                             android:text="@string/btn_import_cert"
                             android:textColor="@color/accent"
-                            android:textSize="10sp" />
+                            android:textSize="10.5sp"
+                            app:strokeColor="@color/border_color" />
                     </LinearLayout>
 
                 </LinearLayout>

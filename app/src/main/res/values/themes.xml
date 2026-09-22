@@ -4,6 +4,30 @@
         <item name="colorPrimaryDark">@color/primary_dark</item>
         <item name="colorAccent">@color/accent</item>
         <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:colorBackgroundFloating">@color/surface</item>
         <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorHint">@color/text_hint</item>
+        <item name="alertDialogTheme">@style/Theme.CaddyProxy.Dialog</item>
+        <item name="materialAlertDialogTheme">@style/Theme.CaddyProxy.Dialog</item>
+    </style>
+
+    <style name="Theme.CaddyProxy.Dialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="android:background">@color/surface</item>
+        <item name="android:colorBackground">@color/surface</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.CaddyProxy.DialogButton</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.CaddyProxy.DialogButton</item>
+    </style>
+
+    <style name="Widget.CaddyProxy.DialogButton" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:textColor">@color/primary</item>
+        <item name="rippleColor">@color/primary</item>
     </style>
 </resources>

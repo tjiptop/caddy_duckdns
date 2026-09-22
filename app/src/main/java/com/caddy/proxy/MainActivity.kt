@@ -15,18 +15,22 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.Button
+import android.widget.Filter
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.appcompat.widget.SwitchCompat
 import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +95,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -219,8 +224,9 @@ class MainActivity : AppCompatActivity() {
                     dropdownItems.add(item.getDisplayText())
                 }
 
-                val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_dropdown_item_1line, dropdownItems)
+                val adapter = IpDropdownAdapter(this@MainActivity, dropdownItems)
                 etManualIp.setAdapter(adapter)
+                etManualIp.setDropDownBackgroundResource(R.drawable.bg_dropdown_popup)
 
                 etManualIp.setOnItemClickListener { _, _, position, _ ->
                     if (position == 0) {
@@ -236,6 +242,12 @@ class MainActivity : AppCompatActivity() {
 
                 etManualIp.setOnClickListener {
                     etManualIp.showDropDown()
+                }
+
+                etManualIp.setOnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        etManualIp.showDropDown()
+                    }
                 }
             }
         }
@@ -386,12 +398,22 @@ class MainActivity : AppCompatActivity() {
 
             // 3. Mini SSL Status
             val domain = getCleanDomain()
+            val token = etToken.text?.toString()?.trim() ?: ""
             val savedCrt = if (domain.isNotBlank()) prefs.getString("saved_cert_$domain", null) else null
             val certFile = if (domain.isNotBlank()) File(File(filesDir, "certs"), "$domain.crt") else null
             val hasCert = (!savedCrt.isNullOrBlank()) || (certFile != null && certFile.exists() && certFile.length() > 0L)
+            
             if (hasCert) {
                 tvCertStatusMini.text = "Let's Encrypt"
                 tvCertStatusMini.setTextColor(Color.parseColor("#4CAF50"))
+            } else if (CaddyService.isRunning) {
+                if (token.isNotBlank()) {
+                    tvCertStatusMini.text = "Meminta SSL..."
+                    tvCertStatusMini.setTextColor(Color.parseColor("#FFD54F"))
+                } else {
+                    tvCertStatusMini.text = "Internal CA"
+                    tvCertStatusMini.setTextColor(Color.parseColor("#4FC3F7"))
+                }
             } else {
                 tvCertStatusMini.text = "Belum Ada"
                 tvCertStatusMini.setTextColor(Color.parseColor("#FFB300"))
@@ -408,6 +430,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateCertStatus() {
         val domain = getCleanDomain()
+        val token = etToken.text?.toString()?.trim() ?: ""
         if (domain.isBlank()) {
             tvCertStatus.text = "Masukkan domain DuckDNS terlebih dahulu"
             tvCertStatus.setTextColor(Color.parseColor("#9E9E9E"))
@@ -425,6 +448,12 @@ class MainActivity : AppCompatActivity() {
             val size = if (certFile.exists()) certFile.length() else savedCrt?.length?.toLong() ?: 0L
             tvCertStatus.text = "✅ Sertifikat Terpasang: $domain ($size bytes)"
             tvCertStatus.setTextColor(Color.parseColor("#4CAF50"))
+        } else if (CaddyService.isRunning && token.isNotBlank()) {
+            tvCertStatus.text = "⏳ Sedang meminta sertifikat Let's Encrypt resmi via DNS-01..."
+            tvCertStatus.setTextColor(Color.parseColor("#FFD54F"))
+        } else if (token.isBlank()) {
+            tvCertStatus.text = "ℹ️ Mode Internal CA (Isi Token DuckDNS untuk SSL resmi Let's Encrypt)"
+            tvCertStatus.setTextColor(Color.parseColor("#81D4FA"))
         } else {
             tvCertStatus.text = "⚠️ Belum ada sertifikat lokal untuk $domain"
             tvCertStatus.setTextColor(Color.parseColor("#FF9800"))
@@ -495,7 +524,7 @@ class MainActivity : AppCompatActivity() {
         dCrt.setText(prefs.getString("saved_cert_$domain", ""))
         dKey.setText(prefs.getString("saved_key_$domain", ""))
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this, R.style.Theme_CaddyProxy_Dialog)
             .setView(dialogView)
             .setPositiveButton("Simpan") { _, _ ->
                 val inputDomain = dDomain.text?.toString()?.trim()?.replace("dnsduck.org", "duckdns.org") ?: ""
@@ -614,6 +643,8 @@ class MainActivity : AppCompatActivity() {
             tvStatus.text = "⚪ Status: $statusText"
             tvStatus.setTextColor(Color.parseColor("#9CA3AF"))
         }
+        updateCertStatus()
+        updateStats()
     }
 
     private fun requestPermissionsIfNeeded() {
@@ -629,3 +660,48 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
+class IpDropdownAdapter(
+    context: Context,
+    items: List<String>
+) : ArrayAdapter<String>(context, R.layout.item_dropdown, items) {
+
+    private val allItems = ArrayList(items)
+
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view = super.getView(position, convertView, parent) as TextView
+        view.setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+        return view
+    }
+
+    override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view = super.getDropDownView(position, convertView, parent) as TextView
+        view.setTextColor(ContextCompat.getColor(context, R.color.text_primary))
+        return view
+    }
+
+    override fun getFilter(): Filter {
+        return object : Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                return FilterResults().apply {
+                    values = allItems
+                    count = allItems.size
+                }
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                clear()
+                if (results != null && results.count > 0) {
+                    addAll(results.values as List<String>)
+                }
+                notifyDataSetChanged()
+            }
+
+            override fun convertResultToString(resultValue: Any?): CharSequence {
+                return resultValue?.toString() ?: ""
+            }
+        }
+    }
+}
+
